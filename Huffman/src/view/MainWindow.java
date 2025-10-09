@@ -70,7 +70,7 @@ public class MainWindow extends JFrame {
 		resultPanel.clearResults();
 		metricsPanel.clearAll();
 		
-		// TODO: Aquí irá la lógica de codificación de Huffman
+		// TODO: Aquí se llamara la funcion para calcular la de codificación de Huffman
 		// Por ahora, usamos datos de prueba simulados
 		if (!message.isEmpty()) {
 			// Obtener datos de prueba basados en el mensaje

@@ -1,11 +1,5 @@
 package app;
 
-//import java.util.ArrayList;
-//import java.util.List;
-
-//import Controlador.Restaurante;
-//import modelo.Cliente;
-//import modelo.Comida;
 import view.MainWindow;
 
 public class Main {
@@ -14,7 +8,6 @@ public class Main {
 	}
 
 	private static void showWindow() {
-		
 		MainWindow window = new MainWindow();
 		window.setVisible(true);
 	}
