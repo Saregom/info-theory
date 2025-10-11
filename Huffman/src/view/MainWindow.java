@@ -6,12 +6,14 @@ import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
+
+import modelo.FileExporter;
+import modelo.HuffmanEncoder;
+import modelo.HuffmanResult;
+
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.io.File;
-import modelo.huffman.HuffmanEncoder;
-import modelo.huffman.HuffmanResult;
-import modelo.huffman.FileExporter;
 
 /**
  * Ventana principal del codificador de Huffman

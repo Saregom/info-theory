@@ -1,4 +1,4 @@
-package modelo.huffman;
+package modelo;
 
 import java.util.Comparator;
 import java.util.HashMap;

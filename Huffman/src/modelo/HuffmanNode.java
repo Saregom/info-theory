@@ -1,4 +1,4 @@
-package modelo.huffman;
+package modelo;
 
 /**
  * Representa un nodo en el árbol de Huffman
