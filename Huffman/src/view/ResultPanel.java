@@ -22,7 +22,7 @@ public class ResultPanel extends JPanel {
 		setBorder(new TitledBorder(null, "Códigos de Huffman", TitledBorder.LEADING, TitledBorder.TOP, null, null));
 		
 		// Crear el modelo de la tabla
-		String[] columnNames = {"Símbolo", "Probabilidad", "Código Binario"};
+		String[] columnNames = {"Símbolo", "Frecuencia", "Probabilidad", "Código Binario"};
 		tableModel = new DefaultTableModel(columnNames, 0) {
 			private static final long serialVersionUID = 1L;
 			
@@ -39,9 +39,10 @@ public class ResultPanel extends JPanel {
 		table.getTableHeader().setFont(new Font("Tahoma", Font.BOLD, 13));
 		
 		// Ajustar el ancho de las columnas
-		table.getColumnModel().getColumn(0).setPreferredWidth(100);  // Símbolo
-		table.getColumnModel().getColumn(1).setPreferredWidth(150); // Probabilidad
-		table.getColumnModel().getColumn(2).setPreferredWidth(400); // Código Binario
+		table.getColumnModel().getColumn(0).setPreferredWidth(80);  // Símbolo
+		table.getColumnModel().getColumn(1).setPreferredWidth(100); // Frecuencia
+		table.getColumnModel().getColumn(2).setPreferredWidth(120); // Probabilidad
+		table.getColumnModel().getColumn(3).setPreferredWidth(300); // Código Binario
 		
 		// Agregar la tabla a un scroll pane
 		JScrollPane scrollPane = new JScrollPane(table);
@@ -52,11 +53,12 @@ public class ResultPanel extends JPanel {
 	/**
 	 * Agrega una fila a la tabla de resultados
 	 * @param symbol el símbolo
+	 * @param frequency la frecuencia del símbolo
 	 * @param probability la probabilidad del símbolo
 	 * @param code el código binario
 	 */
-	public void addResult(String symbol, double probability, String code) {
-		Object[] row = {symbol, String.format("%.4f", probability), code};
+	public void addResult(String symbol, int frequency, double probability, String code) {
+		Object[] row = {symbol, frequency, String.format("%.4f", probability), code};
 		tableModel.addRow(row);
 	}
 	

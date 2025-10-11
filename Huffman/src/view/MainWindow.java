@@ -2,19 +2,16 @@ package view;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
 import javax.swing.border.EmptyBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
-import modelo.CodificadorHuffman;
-import java.util.Map;
-import javax.swing.JOptionPane;
-import javax.swing.JFileChooser;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Comparator;
+import java.io.File;
+import modelo.huffman.HuffmanEncoder;
+import modelo.huffman.HuffmanResult;
+import modelo.huffman.FileExporter;
 
 /**
  * Ventana principal del codificador de Huffman
@@ -26,14 +23,13 @@ public class MainWindow extends JFrame {
 	private InputPanel inputPanel;
 	private ResultPanel resultPanel;
 	private MetricsPanel metricsPanel;
-	private CodificadorHuffman codificador;
+	private HuffmanResult currentResult; // Guardar el resultado actual para exportar
+	private String currentMessage; // Guardar el mensaje actual
 
 	/**
 	 * Create the frame.
 	 */
 	public MainWindow() {
-		
-		codificador = new CodificadorHuffman();
 		
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 720, 700);
@@ -71,10 +67,10 @@ public class MainWindow extends JFrame {
 			}
 		});
 		
-		inputPanel.getSaveButton().addActionListener(new ActionListener() {
+		inputPanel.getExportButton().addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				guardarArchivo();
+				exportResults();
 			}
 		});
 	}
@@ -88,150 +84,97 @@ public class MainWindow extends JFrame {
 		// Limpiar resultados anteriores
 		resultPanel.clearResults();
 		metricsPanel.clearAll();
+		inputPanel.disableExport();
 		
 		// Validar que el mensaje no esté vacío
 		if (message.isEmpty()) {
-			JOptionPane.showMessageDialog(this, 
-				"Por favor, ingrese un mensaje para codificar", 
-				"Mensaje Vacío", 
-				JOptionPane.WARNING_MESSAGE);
 			return;
 		}
 		
 		try {
-			// Codificar el mensaje usando Huffman
-			codificador.codificarMensaje(message);
+			// Codificar el mensaje usando el algoritmo de Huffman
+			HuffmanResult result = HuffmanEncoder.encode(message);
 			
-			// Obtener los resultados
-			Map<Character, String> diccionario = codificador.getDiccionario();
-			Map<Character, Integer> frecuencias = codificador.getFrecuencias();
-			int longitudTotal = message.length();
-			
-			// Crear una lista de caracteres ordenada por frecuencia (descendente)
-			List<Character> caracteresOrdenados = new ArrayList<>(frecuencias.keySet());
-			caracteresOrdenados.sort(new Comparator<Character>() {
-				@Override
-				public int compare(Character c1, Character c2) {
-					// Ordenar de mayor a menor frecuencia
-					return frecuencias.get(c2).compareTo(frecuencias.get(c1));
-				}
-			});
-			
-			// Llenar la tabla con los resultados ordenados
-			for (Character caracter : caracteresOrdenados) {
-				String codigo = diccionario.get(caracter);
-				int frecuencia = frecuencias.get(caracter);
-				double probabilidad = (double) frecuencia / longitudTotal;
-				
-				// Formatear el símbolo para visualización
-				String simbolo = (caracter == ' ') ? "[ESPACIO]" : 
-							   (caracter == '\n') ? "[SALTO]" : 
-							   (caracter == '\t') ? "[TAB]" :
-							   String.valueOf(caracter);
-				
-				resultPanel.addResult(simbolo, probabilidad, codigo);
+			// Mostrar los resultados en la tabla
+			for (int i = 0; i < result.getSymbolCount(); i++) {
+				resultPanel.addResult(
+					String.valueOf(result.getSymbol(i)),
+					result.getFrequency(i),
+					result.getProbability(i),
+					result.getCode(i)
+				);
 			}
 			
-			// Mostrar el mensaje codificado y las métricas
-			metricsPanel.setEncodedMessage(codificador.getMensajeCodificado());
-			metricsPanel.setEntropy(codificador.calcularEntropia());
-			metricsPanel.setAverageLength(codificador.calcularLargoMedio());
-			metricsPanel.setEfficiency(codificador.calcularEficiencia());
+			// Mostrar las métricas y el mensaje codificado
+			metricsPanel.setEncodedMessage(result.getEncodedMessage());
+			metricsPanel.setEntropy(result.getEntropy());
+			metricsPanel.setAverageLength(result.getAverageLength());
+			metricsPanel.setEfficiency(result.getEfficiency());
+			inputPanel.enableExport();
+			
+			// Guardar el resultado y mensaje actual para exportar
+			currentResult = result;
+			currentMessage = message;
 			
 		} catch (Exception ex) {
-			JOptionPane.showMessageDialog(this, 
-				"Error al codificar el mensaje: " + ex.getMessage(), 
-				"Error", 
-				JOptionPane.ERROR_MESSAGE);
+			// Manejar errores
+			System.err.println("Error al codificar el mensaje: " + ex.getMessage());
 			ex.printStackTrace();
 		}
 	}
 	
 	/**
-	 * Guarda los resultados de la codificación en un archivo
+	 * Exporta los resultados a un archivo
 	 */
-	private void guardarArchivo() {
-		if (codificador.getMensajeCodificado() == null || codificador.getMensajeCodificado().isEmpty()) {
+	private void exportResults() {
+		if (currentResult == null) {
 			JOptionPane.showMessageDialog(this, 
-				"No hay mensaje codificado para guardar. Por favor, codifique un mensaje primero.", 
-				"Sin Datos", 
-				JOptionPane.WARNING_MESSAGE);
+				"No hay resultados para exportar.", 
+				"Error", 
+				JOptionPane.ERROR_MESSAGE);
 			return;
 		}
 		
+		// Crear el diálogo de guardar archivo
 		JFileChooser fileChooser = new JFileChooser();
-		fileChooser.setDialogTitle("Guardar archivo Huffman");
+		fileChooser.setDialogTitle("Guardar resultados de Huffman");
 		
-		if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+		// Establecer filtro de archivos
+		FileNameExtensionFilter filter = new FileNameExtensionFilter("Archivos de texto (*.txt)", "txt");
+		fileChooser.setFileFilter(filter);
+		
+		// Sugerir un nombre de archivo
+		fileChooser.setSelectedFile(new File(FileExporter.getSuggestedFileName()));
+		
+		// Mostrar el diálogo
+		int userSelection = fileChooser.showSaveDialog(this);
+		
+		if (userSelection == JFileChooser.APPROVE_OPTION) {
+			File fileToSave = fileChooser.getSelectedFile();
+			
+			// Asegurarse de que el archivo tenga la extensión .txt
+			if (!fileToSave.getName().toLowerCase().endsWith(".txt")) {
+				fileToSave = new File(fileToSave.getAbsolutePath() + ".txt");
+			}
+			
 			try {
-				String filePath = fileChooser.getSelectedFile().getAbsolutePath();
-				if (!filePath.toLowerCase().endsWith(".txt")) {
-					filePath += ".txt";
-				}
-				guardarDatosHuffman(filePath);
+				// Exportar los resultados
+				FileExporter.exportToFile(currentResult, fileToSave.getAbsolutePath(), currentMessage);
+				
+				// Mostrar mensaje de éxito
 				JOptionPane.showMessageDialog(this, 
-					"Archivo guardado exitosamente en:\n" + filePath,
-					"Guardado Exitoso",
+					"Resultados exportados exitosamente a:\n" + fileToSave.getAbsolutePath(), 
+					"Éxito", 
 					JOptionPane.INFORMATION_MESSAGE);
-			} catch (IOException ex) {
+				
+			} catch (Exception ex) {
+				// Mostrar mensaje de error
 				JOptionPane.showMessageDialog(this, 
-					"Error al guardar el archivo: " + ex.getMessage(),
-					"Error",
+					"Error al exportar el archivo:\n" + ex.getMessage(), 
+					"Error", 
 					JOptionPane.ERROR_MESSAGE);
 				ex.printStackTrace();
 			}
-		}
-	}
-	
-	/**
-	 * Guarda los datos de la codificación Huffman en un archivo de texto
-	 */
-	private void guardarDatosHuffman(String filePath) throws IOException {
-		try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
-			// Guardar diccionario
-			writer.write("=== DICCIONARIO HUFFMAN ===\n");
-			Map<Character, String> diccionario = codificador.getDiccionario();
-			Map<Character, Integer> frecuencias = codificador.getFrecuencias();
-			int longitudTotal = codificador.getMensajeOriginal().length();
-			
-			// Crear una lista de caracteres ordenada por frecuencia (descendente)
-			List<Character> caracteresOrdenados = new ArrayList<>(frecuencias.keySet());
-			caracteresOrdenados.sort(new Comparator<Character>() {
-				@Override
-				public int compare(Character c1, Character c2) {
-					// Ordenar de mayor a menor frecuencia
-					return frecuencias.get(c2).compareTo(frecuencias.get(c1));
-				}
-			});
-			
-			// Guardar los símbolos ordenados
-			for (Character caracter : caracteresOrdenados) {
-				String simbolo = (caracter == ' ') ? "[ESPACIO]" : 
-							   (caracter == '\n') ? "[SALTO]" : 
-							   (caracter == '\t') ? "[TAB]" :
-							   String.valueOf(caracter);
-				
-				double probabilidad = (double) frecuencias.get(caracter) / longitudTotal;
-				String codigo = diccionario.get(caracter);
-				
-				writer.write(String.format("Símbolo: %s | Probabilidad: %.4f | Código: %s\n", 
-					simbolo, probabilidad, codigo));
-			}
-			
-			// Guardar estadísticas
-			writer.write("\n=== ESTADÍSTICAS ===\n");
-			writer.write(String.format("Entropía H(S): %.4f bits\n", codificador.calcularEntropia()));
-			writer.write(String.format("Largo medio (L): %.4f bits\n", codificador.calcularLargoMedio()));
-			writer.write(String.format("Eficiencia (η): %.2f%%\n", codificador.calcularEficiencia()));
-			
-			// Guardar mensaje codificado
-			writer.write("\n=== MENSAJE CODIFICADO ===\n");
-			writer.write(codificador.getMensajeCodificado());
-			writer.write("\n");
-			
-			// Guardar mensaje original
-			writer.write("\n=== MENSAJE ORIGINAL ===\n");
-			writer.write(codificador.getMensajeOriginal());
 		}
 	}
 }

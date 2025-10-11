@@ -125,3 +125,5 @@ public class MetricsPanel extends JPanel {
 		lblEfficiencyValue.setText("0.00%");
 	}
 }
+
+
