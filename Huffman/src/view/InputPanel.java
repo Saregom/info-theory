@@ -18,6 +18,7 @@ public class InputPanel extends JPanel {
 	private static final long serialVersionUID = 1L;
 	private JTextField textFieldMessage;
 	private JButton btnEncode;
+	private JButton btnSave;
 	
 	public InputPanel() {
 		setLayout(null);
@@ -39,8 +40,15 @@ public class InputPanel extends JPanel {
 		btnEncode.setFont(new Font("Tahoma", Font.BOLD, 14));
 		btnEncode.setBackground(new Color(100, 149, 237));
 		btnEncode.setForeground(Color.WHITE);
-		btnEncode.setBounds(270, 70, 140, 35);
+		btnEncode.setBounds(190, 70, 140, 35);
 		add(btnEncode);
+		
+		btnSave = new JButton("Guardar Archivo");
+		btnSave.setFont(new Font("Tahoma", Font.BOLD, 14));
+		btnSave.setBackground(new Color(76, 175, 80));
+		btnSave.setForeground(Color.WHITE);
+		btnSave.setBounds(350, 70, 160, 35);
+		add(btnSave);
 		
 		// Permitir presionar Enter en el campo de texto para codificar
 		textFieldMessage.addKeyListener(new KeyAdapter() {
@@ -74,5 +82,13 @@ public class InputPanel extends JPanel {
 	 */
 	public JButton getEncodeButton() {
 		return btnEncode;
+	}
+	
+	/**
+	 * Obtiene el botón de guardar para agregar listeners
+	 * @return el botón de guardar
+	 */
+	public JButton getSaveButton() {
+		return btnSave;
 	}
 }
