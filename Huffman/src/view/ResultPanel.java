@@ -58,7 +58,8 @@ public class ResultPanel extends JPanel {
 	 * @param code el código binario
 	 */
 	public void addResult(String symbol, int frequency, double probability, String code) {
-		Object[] row = {symbol, frequency, String.format("%.4f", probability), code};
+		String symbolStr = (symbol.equals(" ")) ? "(Espacio)" : symbol;
+		Object[] row = {symbolStr, frequency, String.format("%.4f", probability), code};
 		tableModel.addRow(row);
 	}
 	
