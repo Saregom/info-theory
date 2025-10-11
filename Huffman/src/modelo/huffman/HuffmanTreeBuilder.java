@@ -41,15 +41,15 @@ public class HuffmanTreeBuilder {
 			HuffmanNode first = priorityQueue.poll();
 			HuffmanNode second = priorityQueue.poll();
 			
-			// Colocar el nodo más pesado (mayor frecuencia o altura) a la izquierda
-			// para intentar obtener códigos más cortos
+			// Ahora el hijo derecho recibe '0' (código más corto)
+			// Colocar el nodo más pesado (mayor frecuencia) a la derecha
 			HuffmanNode left, right;
-			if (shouldBeLeft(first, second)) {
-				left = first;
-				right = second;
-			} else {
+			if (shouldBeRight(first, second)) {
 				left = second;
 				right = first;
+			} else {
+				left = first;
+				right = second;
 			}
 			
 			HuffmanNode parent = new HuffmanNode(left, right);
@@ -60,25 +60,27 @@ public class HuffmanTreeBuilder {
 	}
 	
 	/**
-	 * Determina si un nodo debería ir a la izquierda
+	 * Determina si un nodo debería ir a la derecha (recibe '0', código más corto)
 	 * @param n1 primer nodo
 	 * @param n2 segundo nodo
-	 * @return true si n1 debe ir a la izquierda
+	 * @return true si n1 debe ir a la derecha
 	 */
-	private static boolean shouldBeLeft(HuffmanNode n1, HuffmanNode n2) {
-		// Si tienen la misma frecuencia, poner el nodo hoja a la izquierda
-		if (n1.getFrequency() == n2.getFrequency()) {
-			if (n1.isLeaf() && !n2.isLeaf()) {
-				return true;
-			}
-			if (!n1.isLeaf() && n2.isLeaf()) {
-				return false;
-			}
-			// Si ambos son hojas o internos, poner el de menor altura a la izquierda
-			return getHeight(n1) <= getHeight(n2);
+	private static boolean shouldBeRight(HuffmanNode n1, HuffmanNode n2) {
+		// Si tienen frecuencias diferentes, el de mayor frecuencia va a la derecha
+		if (n1.getFrequency() != n2.getFrequency()) {
+			return n1.getFrequency() > n2.getFrequency();
 		}
-		// Por defecto, mantener el orden (ambos tienen baja frecuencia)
-		return true;
+		
+		// Si tienen la misma frecuencia, poner el nodo hoja a la derecha
+		if (n1.isLeaf() && !n2.isLeaf()) {
+			return true;
+		}
+		if (!n1.isLeaf() && n2.isLeaf()) {
+			return false;
+		}
+		
+		// Si ambos son hojas o internos, poner el de menor altura a la derecha
+		return getHeight(n1) <= getHeight(n2);
 	}
 	
 	/**
@@ -130,10 +132,11 @@ public class HuffmanTreeBuilder {
 			return;
 		}
 		
-		// Recorrer el subárbol izquierdo (agregar '0')
-		generateCodesRecursive(node.getLeft(), code + "0", codes);
+		// Recorrer el subárbol izquierdo (agregar '1')
+		generateCodesRecursive(node.getLeft(), code + "1", codes);
 		
-		// Recorrer el subárbol derecho (agregar '1')
-		generateCodesRecursive(node.getRight(), code + "1", codes);
+		// Recorrer el subárbol derecho (agregar '0')
+		generateCodesRecursive(node.getRight(), code + "0", codes);
 	}
 }
+
