@@ -62,8 +62,26 @@ public class LZ78Compressor {
         result.setDictionary(dictionary);
         result.setOriginalSize(text.length());
         
-        // Calcular tamaño comprimido: cada par ocupa 4 bytes (int) + 2 bytes (char) = 6 bytes
-        result.setCompressedSize(encodedData.size() * 6L);
+        // Calcular tamaño comprimido de forma más precisa
+        // Usar codificación de tamaño variable basada en el tamaño del diccionario
+        long compressedSize = 0;
+        int maxIndex = dictionary.size();
+        
+        // Calcular bits necesarios para representar los índices
+        int bitsForIndex = maxIndex > 0 ? (int) Math.ceil(Math.log(maxIndex + 1) / Math.log(2)) : 1;
+        if (bitsForIndex < 1) bitsForIndex = 1;
+        
+        // Cada par: índice (bits variables) + carácter (8 bits)
+        int bitsPerPair = bitsForIndex + 8;
+        long totalBits = (long) encodedData.size() * bitsPerPair;
+        
+        // Convertir a bytes (redondear hacia arriba)
+        compressedSize = (totalBits + 7) / 8;
+        
+        // Añadir overhead del formato (número mágico, tamaños, etc.)
+        compressedSize += 50; // Overhead aproximado del encabezado
+        
+        result.setCompressedSize(compressedSize);
 
         return result;
     }

@@ -124,9 +124,18 @@ public class CompressionResult {
         sb.append("==========================\n\n");
         sb.append(String.format("Tamaño original:      %,d bytes\n", originalSize));
         sb.append(String.format("Tamaño comprimido:    %,d bytes\n", compressedSize));
-        sb.append(String.format("Porcentaje compresión: %.2f%%\n", getCompressionPercentage()));
-        sb.append(String.format("Ratio de compresión:  %.2f:1\n", getCompressionRatio()));
-        sb.append(String.format("Entradas diccionario: %d\n", dictionary != null ? dictionary.size() : 0));
+        
+        double percentage = getCompressionPercentage();
+        if (percentage > 0) {
+            sb.append(String.format("Reducción de tamaño:  %.2f%%\n", percentage));
+            sb.append(String.format("Ratio de compresión:  %.2f:1\n", getCompressionRatio()));
+        } else {
+            sb.append(String.format("Expansión:            %.2f%% (archivo más grande)\n", Math.abs(percentage)));
+            sb.append("\nNOTA: El algoritmo LZ78 puede expandir archivos pequeños\n");
+            sb.append("o archivos sin patrones repetitivos significativos.\n");
+        }
+        
+        sb.append(String.format("\nEntradas diccionario: %d\n", dictionary != null ? dictionary.size() : 0));
         sb.append(String.format("Pares codificados:    %d\n", encodedData != null ? encodedData.size() : 0));
         
         return sb.toString();

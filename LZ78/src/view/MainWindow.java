@@ -320,46 +320,73 @@ public class MainWindow extends JFrame {
             return;
         }
 
-        try {
-            // Comprimir
-            compressionStatusLabel.setText("Comprimiendo...");
-            compressionStatusLabel.setForeground(Color.BLUE);
-            
-            // Cargar el archivo usando el path almacenado
-            String content;
-            String fileName = lastOriginalFileName.toLowerCase();
-            
-            if (fileName.endsWith(".txt")) {
-                content = controller.loadTextFile(lastOriginalFilePath);
-            } else {
-                content = controller.loadBinaryFile(lastOriginalFilePath);
+        // Mostrar mensaje de progreso en el label de estado
+        compressionStatusLabel.setText("Comprimiendo archivo, por favor espere...");
+        compressionStatusLabel.setForeground(Color.BLUE);
+        
+        // Deshabilitar botones durante la compresión
+        compressButton.setEnabled(false);
+        loadFileButton.setEnabled(false);
+
+        // Ejecutar compresión en un hilo separado
+        SwingWorker<CompressionResult, Void> worker = new SwingWorker<CompressionResult, Void>() {
+            @Override
+            protected CompressionResult doInBackground() throws Exception {
+                // Cargar el archivo usando el path almacenado
+                String content;
+                String fileName = lastOriginalFileName.toLowerCase();
+                
+                if (fileName.endsWith(".txt")) {
+                    content = controller.loadTextFile(lastOriginalFilePath);
+                } else {
+                    content = controller.loadBinaryFile(lastOriginalFilePath);
+                }
+                
+                return controller.compressText(content);
             }
             
-            lastCompressionResult = controller.compressText(content);
-            
-            // Mostrar datos codificados
-            compressedOutputArea.setText(lastCompressionResult.getEncodedDataString());
-            
-            // Mostrar estadísticas
-            statsArea.setText(lastCompressionResult.getStatistics());
-            
-            // Mostrar diccionario
-            compressionDictionaryViewer.displayDictionary(
-                lastCompressionResult.getDictionary().getReverseDictionary());
-            
-            // Habilitar botones de guardado
-            saveCompressedButton.setEnabled(true);
-            saveDictionaryButton.setEnabled(true);
-            
-            compressionStatusLabel.setText("Compresión exitosa - " + 
-                String.format("%.2f%% de compresión", lastCompressionResult.getCompressionPercentage()));
-            compressionStatusLabel.setForeground(new Color(0, 128, 0));
-            
-        } catch (Exception ex) {
-            showError("Error al comprimir", ex.getMessage());
-            compressionStatusLabel.setText("Error: " + ex.getMessage());
-            compressionStatusLabel.setForeground(Color.RED);
-        }
+            @Override
+            protected void done() {
+                // Rehabilitar botones
+                compressButton.setEnabled(true);
+                loadFileButton.setEnabled(true);
+                
+                try {
+                    lastCompressionResult = get();
+                    
+                    // Mostrar datos codificados
+                    compressedOutputArea.setText(lastCompressionResult.getEncodedDataString());
+                    
+                    // Mostrar estadísticas
+                    statsArea.setText(lastCompressionResult.getStatistics());
+                    
+                    // Mostrar diccionario
+                    compressionDictionaryViewer.displayDictionary(
+                        lastCompressionResult.getDictionary().getReverseDictionary());
+                    
+                    // Habilitar botones de guardado
+                    saveCompressedButton.setEnabled(true);
+                    saveDictionaryButton.setEnabled(true);
+                    
+                    double percentage = lastCompressionResult.getCompressionPercentage();
+                    if (percentage > 0) {
+                        compressionStatusLabel.setText("Compresión exitosa - " + 
+                            String.format("%.2f%% de reducción", percentage));
+                        compressionStatusLabel.setForeground(new Color(0, 128, 0));
+                    } else {
+                        compressionStatusLabel.setText("Compresión completada - " + 
+                            String.format("Archivo expandido %.2f%%", Math.abs(percentage)));
+                        compressionStatusLabel.setForeground(new Color(255, 140, 0)); // Naranja
+                    }
+                } catch (Exception ex) {
+                    showError("Error al comprimir", ex.getMessage());
+                    compressionStatusLabel.setText("Error: " + ex.getMessage());
+                    compressionStatusLabel.setForeground(Color.RED);
+                }
+            }
+        };
+        
+        worker.execute();
     }
 
     private void saveCompressed() {
@@ -471,35 +498,62 @@ public class MainWindow extends JFrame {
             return;
         }
 
-        try {
-            decompressionStatusLabel.setText("Descomprimiendo...");
-            decompressionStatusLabel.setForeground(Color.BLUE);
+        // Mostrar mensaje de progreso en el label de estado
+        decompressionStatusLabel.setText("Descomprimiendo archivo, por favor espere...");
+        decompressionStatusLabel.setForeground(Color.BLUE);
+        
+        // Deshabilitar botones durante la descompresión
+        decompressButton.setEnabled(false);
+        loadCompressedButton.setEnabled(false);
+
+        // Ejecutar descompresión en un hilo separado
+        SwingWorker<CompressionResult, Void> worker = new SwingWorker<CompressionResult, Void>() {
+            @Override
+            protected CompressionResult doInBackground() throws Exception {
+                return controller.decompressData(lastDecompressionResult.getEncodedData());
+            }
             
-            // Descomprimir
-            lastDecompressionResult = controller.decompressData(
-                lastDecompressionResult.getEncodedData());
-            
-            // Mostrar texto descomprimido
-            decompressedOutputArea.setText(lastDecompressionResult.getDecompressedText());
-            
-            // Mostrar estadísticas
-            decompressionStatsArea.setText(lastDecompressionResult.getStatistics());
-            
-            // Mostrar diccionario
-            decompressionDictionaryViewer.displayDictionary(
-                lastDecompressionResult.getDictionary().getReverseDictionary());
-            
-            // Habilitar botón de guardado
-            saveDecompressedButton.setEnabled(true);
-            
-            decompressionStatusLabel.setText("Descompresión exitosa");
-            decompressionStatusLabel.setForeground(new Color(0, 128, 0));
-            
-        } catch (Exception ex) {
-            showError("Error al descomprimir", ex.getMessage());
-            decompressionStatusLabel.setText("Error: " + ex.getMessage());
-            decompressionStatusLabel.setForeground(Color.RED);
-        }
+            @Override
+            protected void done() {
+                // Rehabilitar botones
+                decompressButton.setEnabled(true);
+                loadCompressedButton.setEnabled(true);
+                
+                try {
+                    lastDecompressionResult = get();
+                    
+                    // Mostrar texto descomprimido (limitar para archivos grandes)
+                    String decompressedText = lastDecompressionResult.getDecompressedText();
+                    if (decompressedText.length() > 10000) {
+                        decompressedOutputArea.setText("[Archivo binario o muy grande]\n\n" +
+                            "Tamaño: " + decompressedText.length() + " bytes\n" +
+                            "Use 'Guardar Descomprimido' para recuperar el archivo completo.");
+                    } else {
+                        decompressedOutputArea.setText(decompressedText);
+                    }
+                    
+                    // Mostrar estadísticas
+                    decompressionStatsArea.setText(lastDecompressionResult.getStatistics());
+                    
+                    // Mostrar diccionario
+                    decompressionDictionaryViewer.displayDictionary(
+                        lastDecompressionResult.getDictionary().getReverseDictionary());
+                    
+                    // Habilitar botón de guardado
+                    saveDecompressedButton.setEnabled(true);
+                    
+                    decompressionStatusLabel.setText("Descompresión exitosa");
+                    decompressionStatusLabel.setForeground(new Color(0, 128, 0));
+                    
+                } catch (Exception ex) {
+                    showError("Error al descomprimir", ex.getMessage());
+                    decompressionStatusLabel.setText("Error: " + ex.getMessage());
+                    decompressionStatusLabel.setForeground(Color.RED);
+                }
+            }
+        };
+        
+        worker.execute();
     }
 
     private void saveDecompressed() {

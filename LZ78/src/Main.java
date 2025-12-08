@@ -3,9 +3,6 @@ import javax.swing.*;
 
 /**
  * Clase principal de la aplicación de compresión LZ78
- * 
- * @author Teoría de la Información
- * @version 1.0
  */
 public class Main {
     
