@@ -28,6 +28,7 @@ public class MainWindow extends JFrame {
     private JButton compressButton;
     private JButton saveCompressedButton;
     private JButton saveDictionaryButton;
+    private JButton clearCompressionButton;
     private JLabel compressionStatusLabel;
     
     // Panel de Descompresión
@@ -38,6 +39,7 @@ public class MainWindow extends JFrame {
     private JButton loadCompressedButton;
     private JButton decompressButton;
     private JButton saveDecompressedButton;
+    private JButton clearDecompressionButton;
     private JLabel decompressionStatusLabel;
     
     // Datos de compresión
@@ -94,10 +96,11 @@ public class MainWindow extends JFrame {
         compressionDictionaryViewer = new DictionaryViewer();
         
         // Botones
-        loadFileButton = new JButton("📁 Cargar Archivo");
-        compressButton = new JButton("🗜️ Comprimir");
-        saveCompressedButton = new JButton("💾 Guardar Comprimido");
-        saveDictionaryButton = new JButton("📄 Guardar Diccionario");
+        loadFileButton = new JButton("Cargar Archivo");
+        compressButton = new JButton("Comprimir");
+        saveCompressedButton = new JButton("Guardar Comprimido");
+        saveDictionaryButton = new JButton("Guardar Diccionario");
+        clearCompressionButton = new JButton("Limpiar");
         
         saveCompressedButton.setEnabled(false);
         saveDictionaryButton.setEnabled(false);
@@ -127,9 +130,10 @@ public class MainWindow extends JFrame {
         decompressionDictionaryViewer = new DictionaryViewer();
         
         // Botones
-        loadCompressedButton = new JButton("📁 Cargar Archivo Comprimido");
-        decompressButton = new JButton("📦 Descomprimir");
-        saveDecompressedButton = new JButton("💾 Guardar Descomprimido");
+        loadCompressedButton = new JButton("Cargar Archivo Comprimido");
+        decompressButton = new JButton("Descomprimir");
+        saveDecompressedButton = new JButton("Guardar Descomprimido");
+        clearDecompressionButton = new JButton("Limpiar");
         
         decompressButton.setEnabled(false);
         saveDecompressedButton.setEnabled(false);
@@ -166,6 +170,7 @@ public class MainWindow extends JFrame {
         buttonPanel.add(compressButton);
         buttonPanel.add(saveCompressedButton);
         buttonPanel.add(saveDictionaryButton);
+        buttonPanel.add(clearCompressionButton);
         
         topPanel.add(inputPanel, BorderLayout.CENTER);
         topPanel.add(buttonPanel, BorderLayout.SOUTH);
@@ -212,6 +217,7 @@ public class MainWindow extends JFrame {
         topPanel.add(loadCompressedButton);
         topPanel.add(decompressButton);
         topPanel.add(saveDecompressedButton);
+        topPanel.add(clearDecompressionButton);
         
         // Panel central: texto descomprimido y estadísticas
         JSplitPane centerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
@@ -250,11 +256,13 @@ public class MainWindow extends JFrame {
         compressButton.addActionListener(e -> compress());
         saveCompressedButton.addActionListener(e -> saveCompressed());
         saveDictionaryButton.addActionListener(e -> saveDictionary());
+        clearCompressionButton.addActionListener(e -> clearCompression());
         
         // Listeners de descompresión
         loadCompressedButton.addActionListener(e -> loadCompressedFile());
         decompressButton.addActionListener(e -> decompress());
         saveDecompressedButton.addActionListener(e -> saveDecompressed());
+        clearDecompressionButton.addActionListener(e -> clearDecompression());
     }
 
     // ==================== MÉTODOS DE COMPRESIÓN ====================
@@ -366,12 +374,13 @@ public class MainWindow extends JFrame {
         // Generar nombre de archivo basado en el archivo original
         String defaultFileName = "comprimido.lz78";
         if (lastOriginalFileName != null && !lastOriginalFileName.isEmpty()) {
-            // Remover la extensión .txt y agregar _comprimido.lz78
+            // Remover cualquier extensión del archivo original
             String baseName = lastOriginalFileName;
-            if (baseName.toLowerCase().endsWith(".txt")) {
-                baseName = baseName.substring(0, baseName.length() - 4);
+            int lastDot = baseName.lastIndexOf('.');
+            if (lastDot > 0) {
+                baseName = baseName.substring(0, lastDot);
             }
-            defaultFileName = baseName + ".lz78";
+            defaultFileName = baseName + "_comprimido.lz78";
         }
         
         fileChooser.setSelectedFile(new File(defaultFileName));
@@ -526,8 +535,13 @@ public class MainWindow extends JFrame {
         String defaultFileName = "descomprimido" + originalExt;
         if (lastCompressedFileName != null && !lastCompressedFileName.isEmpty()) {
             String baseName = lastCompressedFileName;
+            // Remover la extensión .lz78
             if (baseName.toLowerCase().endsWith(".lz78")) {
                 baseName = baseName.substring(0, baseName.length() - 5);
+            }
+            // Remover el sufijo _comprimido si existe
+            if (baseName.toLowerCase().endsWith("_comprimido")) {
+                baseName = baseName.substring(0, baseName.length() - 11);
             }
             defaultFileName = baseName + "_descomprimido" + originalExt;
         }
@@ -555,6 +569,34 @@ public class MainWindow extends JFrame {
         }
     }
 
+    // ==================== MÉTODOS DE LIMPIEZA ====================
+    
+    private void clearCompression() {
+        inputTextArea.setText("");
+        compressedOutputArea.setText("");
+        statsArea.setText("");
+        compressionDictionaryViewer.clear();
+        lastCompressionResult = null;
+        lastOriginalFileName = null;
+        lastOriginalFilePath = null;
+        saveCompressedButton.setEnabled(false);
+        saveDictionaryButton.setEnabled(false);
+        compressionStatusLabel.setText("Listo para comprimir");
+        compressionStatusLabel.setForeground(Color.BLACK);
+    }
+    
+    private void clearDecompression() {
+        decompressedOutputArea.setText("");
+        decompressionStatsArea.setText("");
+        decompressionDictionaryViewer.clear();
+        lastDecompressionResult = null;
+        lastCompressedFileName = null;
+        decompressButton.setEnabled(false);
+        saveDecompressedButton.setEnabled(false);
+        decompressionStatusLabel.setText("Listo para descomprimir");
+        decompressionStatusLabel.setForeground(Color.BLACK);
+    }
+    
     // ==================== MÉTODOS DE UTILIDAD ====================
     
     private void showError(String title, String message) {
