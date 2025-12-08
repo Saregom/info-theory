@@ -42,10 +42,23 @@ public class LZ78Compressor {
         CompressionResult result = new CompressionResult();
         
         try {
-            // Validar archivo
-            if (!inputFile.exists() || !inputFile.canRead()) {
+            // Validar archivo existe y es legible
+            if (!inputFile.exists()) {
                 result.setSuccess(false);
-                result.setErrorMessage("El archivo no existe o no se puede leer");
+                result.setErrorMessage("El archivo no existe");
+                return result;
+            }
+            
+            if (!inputFile.canRead()) {
+                result.setSuccess(false);
+                result.setErrorMessage("El archivo no se puede leer. Verifique los permisos.");
+                return result;
+            }
+            
+            // Validar que el archivo no esté vacío
+            if (inputFile.length() == 0) {
+                result.setSuccess(false);
+                result.setErrorMessage("El archivo está vacío. No hay nada que comprimir.");
                 return result;
             }
             
@@ -177,11 +190,69 @@ public class LZ78Compressor {
     }
     
     /**
-     * Guarda los datos comprimidos en un archivo
+     * Guarda los datos comprimidos en un archivo incluyendo el diccionario
+     * Formato del archivo:
+     * [HEADER: "LZ78" + versión]
+     * [Tamaño del diccionario]
+     * [Diccionario serializado]
+     * [Datos comprimidos (pares índice-carácter)]
      */
     public void saveCompressedFile(File outputFile, CompressionResult result) throws IOException {
-        try (FileOutputStream fos = new FileOutputStream(outputFile)) {
-            fos.write(result.getCompressedData());
+        try (DataOutputStream dos = new DataOutputStream(
+                new BufferedOutputStream(new FileOutputStream(outputFile)))) {
+            
+            // Escribir header con identificador y versión
+            dos.writeBytes("LZ78");
+            dos.writeByte(1); // Versión del formato
+            
+            // Serializar el diccionario
+            Dictionary dict = result.getDictionary();
+            byte[] dictData = serializeDictionary(dict);
+            
+            // Escribir tamaño del diccionario
+            dos.writeInt(dictData.length);
+            
+            // Escribir el diccionario
+            dos.write(dictData);
+            
+            // Escribir los datos comprimidos
+            dos.write(result.getCompressedData());
+            
+            dos.flush();
         }
+    }
+    
+    /**
+     * Serializa el diccionario a bytes
+     */
+    private byte[] serializeDictionary(Dictionary dictionary) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream dos = new DataOutputStream(baos);
+        
+        // Obtener el mapa de decodificación
+        var decodingDict = dictionary.getDecodingDict();
+        
+        // Escribir número de entradas
+        writeVariableInt(dos, decodingDict.size());
+        
+        // Escribir cada entrada (índice -> frase)
+        for (var entry : decodingDict.entrySet()) {
+            int index = entry.getKey();
+            String phrase = entry.getValue();
+            
+            // Escribir índice
+            writeVariableInt(dos, index);
+            
+            // Escribir longitud de la frase
+            writeVariableInt(dos, phrase.length());
+            
+            // Escribir la frase como chars
+            for (char c : phrase.toCharArray()) {
+                dos.writeChar(c);
+            }
+        }
+        
+        dos.flush();
+        return baos.toByteArray();
     }
 }

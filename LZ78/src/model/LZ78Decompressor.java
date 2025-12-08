@@ -16,34 +16,89 @@ public class LZ78Decompressor {
         CompressionResult result = new CompressionResult();
         
         try {
-            // Validar archivo
-            if (!compressedFile.exists() || !compressedFile.canRead()) {
+            // Validar archivo existe
+            if (!compressedFile.exists()) {
                 result.setSuccess(false);
-                result.setErrorMessage("El archivo no existe o no se puede leer");
+                result.setErrorMessage("El archivo no existe");
                 return result;
             }
             
+            // Validar que se puede leer
+            if (!compressedFile.canRead()) {
+                result.setSuccess(false);
+                result.setErrorMessage("El archivo no se puede leer. Verifique los permisos.");
+                return result;
+            }
+            
+            // Validar que no esté vacío
             if (compressedFile.length() == 0) {
                 result.setSuccess(false);
                 result.setErrorMessage("El archivo está vacío");
                 return result;
             }
             
-            // Leer datos comprimidos
-            byte[] compressedData = readCompressedFile(compressedFile);
-            result.setCompressedData(compressedData);
+            // Validar tamaño mínimo (header + datos)
+            if (compressedFile.length() < 10) {
+                result.setSuccess(false);
+                result.setErrorMessage("El archivo es demasiado pequeño. Posiblemente esté corrupto.");
+                return result;
+            }
+            
             result.setCompressedSize(compressedFile.length());
             
-            // Decodificar pares
-            List<LZ78Compressor.EncodedPair> encoded = decodeFromBytes(compressedData);
-            
-            // Descomprimir
-            Dictionary dictionary = new Dictionary();
-            String decompressedText = decompressText(encoded, dictionary);
-            
-            result.setOriginalText(decompressedText);
-            result.setOriginalSize(decompressedText.getBytes("UTF-8").length);
-            result.setDictionary(dictionary);
+            // Leer y parsear el archivo completo
+            try (DataInputStream dis = new DataInputStream(
+                    new BufferedInputStream(new FileInputStream(compressedFile)))) {
+                
+                // Leer y validar header
+                byte[] header = new byte[4];
+                dis.readFully(header);
+                String headerStr = new String(header);
+                
+                if (!headerStr.equals("LZ78")) {
+                    result.setSuccess(false);
+                    result.setErrorMessage("Formato de archivo inválido. No es un archivo LZ78.");
+                    return result;
+                }
+                
+                // Leer versión
+                int version = dis.readUnsignedByte();
+                if (version != 1) {
+                    result.setSuccess(false);
+                    result.setErrorMessage("Versión de archivo no soportada: " + version);
+                    return result;
+                }
+                
+                // Leer tamaño del diccionario
+                int dictSize = dis.readInt();
+                
+                // Leer y deserializar el diccionario
+                byte[] dictData = new byte[dictSize];
+                dis.readFully(dictData);
+                Dictionary dictionary = deserializeDictionary(dictData);
+                
+                // Leer el resto como datos comprimidos
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = dis.read(buffer)) != -1) {
+                    baos.write(buffer, 0, bytesRead);
+                }
+                byte[] compressedData = baos.toByteArray();
+                
+                result.setCompressedData(compressedData);
+                
+                // Decodificar pares
+                List<LZ78Compressor.EncodedPair> encoded = decodeFromBytes(compressedData);
+                
+                // Descomprimir usando el diccionario leído
+                String decompressedText = decompressText(encoded, dictionary);
+                
+                result.setOriginalText(decompressedText);
+                result.setOriginalSize(decompressedText.getBytes("UTF-8").length);
+                result.setDictionary(dictionary);
+                result.setSuccess(true);
+            }
             
         } catch (IOException e) {
             result.setSuccess(false);
@@ -57,14 +112,35 @@ public class LZ78Decompressor {
     }
     
     /**
-     * Lee el archivo comprimido completo
+     * Deserializa el diccionario desde bytes
      */
-    private byte[] readCompressedFile(File file) throws IOException {
-        byte[] data = new byte[(int) file.length()];
-        try (FileInputStream fis = new FileInputStream(file)) {
-            fis.read(data);
+    private Dictionary deserializeDictionary(byte[] data) throws IOException {
+        Dictionary dictionary = new Dictionary();
+        ByteArrayInputStream bais = new ByteArrayInputStream(data);
+        DataInputStream dis = new DataInputStream(bais);
+        
+        // Leer número de entradas
+        int size = readVariableInt(dis);
+        
+        // Leer cada entrada
+        for (int i = 0; i < size; i++) {
+            // Leer índice (lo leemos del archivo pero el diccionario genera sus propios índices)
+            readVariableInt(dis); // índice del archivo
+            
+            // Leer longitud de la frase
+            int phraseLength = readVariableInt(dis);
+            
+            // Leer la frase
+            StringBuilder phrase = new StringBuilder();
+            for (int j = 0; j < phraseLength; j++) {
+                phrase.append(dis.readChar());
+            }
+            
+            // Agregar al diccionario
+            dictionary.addEntry(phrase.toString());
         }
-        return data;
+        
+        return dictionary;
     }
     
     /**

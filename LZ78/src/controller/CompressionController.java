@@ -16,6 +16,7 @@ public class CompressionController {
     private LZ78Decompressor decompressor;
     private CompressionResult currentResult;
     private File currentFile;
+    private File currentCompressedFile; // Para guardar referencia al archivo .lz78
     
     public CompressionController(MainWindow view) {
         this.view = view;
@@ -164,6 +165,7 @@ public class CompressionController {
         
         if (result == JFileChooser.APPROVE_OPTION) {
             File compressedFile = fileChooser.getSelectedFile();
+            currentCompressedFile = compressedFile; // Guardar referencia
             
             view.setStatus("Descomprimiendo archivo...");
             
@@ -180,7 +182,9 @@ public class CompressionController {
                         currentResult = get();
                         
                         if (currentResult.isSuccess()) {
-                            view.setTextArea(currentResult.getOriginalText());
+                            // Construir texto completo: Diccionario + Contenido
+                            String fullContent = buildDecompressedContent(currentResult);
+                            view.setTextArea(fullContent);
                             view.setFileInfo("Archivo descomprimido: " + compressedFile.getName());
                             view.setStatus("Descompresión completada");
                             view.enableSaveDecompressed(true);
@@ -215,7 +219,14 @@ public class CompressionController {
         FileNameExtensionFilter filter = new FileNameExtensionFilter(
                 "Archivos de texto (*.txt)", "txt");
         fileChooser.setFileFilter(filter);
-        fileChooser.setSelectedFile(new File("descomprimido.txt"));
+        
+        // Generar nombre por defecto basado en el archivo .lz78
+        String defaultName = "descomprimido.txt";
+        if (currentCompressedFile != null) {
+            String baseName = currentCompressedFile.getName().replaceFirst("[.][^.]+$", "");
+            defaultName = baseName + "_descomprimido.txt";
+        }
+        fileChooser.setSelectedFile(new File(defaultName));
         
         int result = fileChooser.showSaveDialog(view);
         
@@ -228,7 +239,9 @@ public class CompressionController {
             }
             
             try {
-                decompressor.saveDecompressedFile(outputFile, currentResult.getOriginalText());
+                // Guardar el contenido completo: diccionario + texto original
+                String fullContent = buildDecompressedContent(currentResult);
+                decompressor.saveDecompressedFile(outputFile, fullContent);
                 view.showSuccess("Archivo descomprimido guardado exitosamente en:\n" + 
                                 outputFile.getAbsolutePath());
                 view.setStatus("Archivo guardado");
@@ -253,10 +266,35 @@ public class CompressionController {
     }
     
     /**
+     * Construye el contenido completo mostrando diccionario y texto original
+     */
+    private String buildDecompressedContent(CompressionResult result) {
+        StringBuilder content = new StringBuilder();
+        
+        // Agregar el diccionario
+        content.append("========================================\n");
+        content.append("       DICCIONARIO GENERADO (LZ78)      \n");
+        content.append("========================================\n\n");
+        content.append(result.getDictionary().getDictionaryAsString());
+        content.append("\n\n");
+        
+        // Agregar separador
+        content.append("========================================\n");
+        content.append("         CONTENIDO ORIGINAL             \n");
+        content.append("========================================\n\n");
+        
+        // Agregar el texto original
+        content.append(result.getOriginalText());
+        
+        return content.toString();
+    }
+    
+    /**
      * Limpia el estado actual
      */
     public void clear() {
         currentResult = null;
         currentFile = null;
+        currentCompressedFile = null;
     }
 }

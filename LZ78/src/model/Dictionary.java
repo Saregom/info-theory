@@ -74,7 +74,6 @@ public class Dictionary {
      */
     public String getDictionaryAsString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("========== DICCIONARIO LZ78 ==========\n");
         sb.append("Índice\t| Frase\n");
         sb.append("--------------------------------------\n");
         
