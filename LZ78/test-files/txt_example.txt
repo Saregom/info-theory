@@ -1,0 +1,124 @@
+En definitiva, el objetivo de este libro es abordar un análisis matemático
+general de los sistemas de transmisión de señales o mensajes digitales en los
+que se utilizan canales punto a punto. Empecemos, pues, por formular una
+abstracción conveniente de los dos elementos básicos de tales sistemas: el
+mensaje digital y el canal punto a punto.
+
+
+3Se entiende por digitalización la conversión de una señal analógica en digital. El
+proceso de digitalización tiene dos fases diferenciadas: la fase de muestreo (el teorema de
+muestreo de Nyquist establece que se puede recuperar cualquier señal analógica a partir
+de una secuencia de valores puntuales de la misma convenientemente equiespaciados) y
+la fase de cuantificación (cada uno de los valores de la secuencia anterior se representa,
+con tanta fidelidad como se requiera, mediante una cierta secuencia de bits).
+
+4Actualmente, el empleo de señales digitales para la comunicación goza de varias im-
+portantes ventajas: primero, los ordenadores pueden manipular fácilmente cualquier tipo
+
+de información digital; además, cualquier información digital se puede copiar o transmitir
+tantas veces como se quiera sin sufrir ningún tipo de alteración; por último, se pueden
+emplear los mismos procedimientos, es decir, una red única, para el envío de cualquier
+tipo de información digital.
+5Se denominan canales punto a punto los canales con un único emisor y un único
+receptor. Si bien estos canales son los que se utilizan en mayor medida para la construcción
+de redes de comunicaciones, algunos sistemas de comunicación se basan en otro tipo de
+canales, con múltiples emisores y/o receptores, que se denominan típicamente canales
+multipunto o canales de acceso múltiple. La utilización de canales de acceso múltiple
+no es más que un caso particular de una disciplina más general que se ocupa de la
+construcción de redes de comunicaciones. Desde el punto de vista de la Teoría de la
+Información, el problema general de las comunicaciones en red, del que se ocupa la Teoría
+de la Información de Red, no está todavía bien resuelto. En todo caso, tal problema cae
+fuera del ámbito de este libro.
+
+cualquier conjunto numerable y finito de símbolos. El número de ele-
+mentos que forman la secuencia se denominará longitud del mensaje.
+
+Se considerará únicamente el caso de que las características individua-
+les de los símbolos sean intrascendentes para la transmisión, siendo así
+
+lo único importante de los alfabetos su tamaño. En el caso particu-
+lar (muy habitual, por otra parte) de que el alfabeto tenga sólo dos
+
+elementos, se denomina alfabeto binario. Los símbolos de un alfabeto
+binario se representan típicamente por los dígitos 0 y 1, que reciben
+el nombre de bits.6
+Los mensajes digitales se suponen generados por un dispositivo que
+denominaremos fuente discreta. Así pues, se supondrá la existencia de
+una fuente discreta capaz de generar de forma ininterrumpida símbolos
+
+de un cierto alfabeto, característico de la fuente, que se denomina ha-
+bitualmente alfabeto de la fuente. Naturalmente, las fuentes discretas
+
+de interés generan los mensajes de forma aleatoria, ya que de lo con-
+trario sería innecesaria su transmisión.
+
+Canal punto a punto: Se denominará canal punto a punto cualquier me-
+dio físico apto para la transmisión de mensajes de un punto (fuente)
+
+a otro (destino).
+Si por el canal sólo pueden transmitirse mensajes digitales, se dice que
+se trata de un canal digital, también conocido como canal discreto, que
+será la denominación que se empleará preferentemente en el resto del
+libro.
+El canal punto a punto discreto estará caracterizado por un cierto
+alfabeto (el conjunto de los símbolos que puede transmitir), así como
+por un cierto régimen uniforme de transmisión (la inversa del tiempo
+necesario para la transmisión de cada símbolo) y por un cierto retardo
+de propagación7
+
+(el tiempo necesario para que un símbolo atraviese el
+canal). Idealmente, el mensaje que sale del canal debería ser siempre
+idéntico al que ha entrado;8
+
+si así fuese, se diría que el canal empleado
+es un canal ideal. Desafortunadamente, no ocurre siempre así; sino
+que, a veces y de forma aleatoria, el mensaje que sale del canal es
+distinto del que ha entrado. A la causa de tal efecto se la denomina
+genéricamente ruido; y el canal que se ve afectado por algún tipo de
+ruido se denomina canal ruidoso. Aun más, por razones de generalidad
+del análisis, vamos a suponer que no sólo el mensaje que sale del canal
+puede ser distinto del que ha entrado, sino que también puede contener
+
+símbolos de un alfabeto distinto al utilizado para conformar el mensaje
+que se transmite.9 Por tanto, y además del régimen de transmisión y
+el retardo, un canal discreto estará caracterizado por:
+un alfabeto de entrada, con un número de elementos igual al de
+símbolos distintos que puedan formar parte de los mensajes que
+se introducen en el canal;
+
+un alfabeto de salida (no necesariamente igual al alfabeto de en-
+trada), con un número de elementos igual al de símbolos distintos
+
+que se puedan identificar en los mensajes que salen del canal;
+
+y una representación estocástica del ruido que afecta a la transmi-
+sión de los mensajes.
+
+1.1.1. Requisitos del sistema
+Para que resulte satisfactorio, un sistema de transmisión de mensajes
+
+digitales debe cumplir determinados requisitos, fundamentalmente de fiabi-
+lidad y coste.10 Tales requisitos dependen, en general, de la naturaleza de
+
+los mensajes que se van a transmitir. En algunos casos se pueden producir
+
+distorsiones en los mensajes transmitidos que son, no obstante, impercepti-
+bles para el destinatario de los mismos, o cuando menos tolerables. En tales
+
+casos, puede aprovecharse la tolerancia al error del destinatario para la con-
+secución de menores costes de transmisión de los mensajes. Aun así, en este
+
+texto se considerarán únicamente aquellos sistemas de transmisión de men-
+sajes digitales cuyo objetivo es la reproducción fiel en el punto de destino
+
+del mensaje generado por la fuente. Es decir, en este texto nos interesare-
+mos por determinar en qué condiciones y cómo es posible la consecución
+
+de una transmisión fiable. Y además, aun sin establecer una restricción de
+coste a priori, nos interesa determinar la manera más económica de hacerlo.
+Establezcamos, pues, tanto un criterio de fidelidad en la copia de mensajes
+como una medida del coste de uso de un canal dado.
+
+Criterio de fidelidad: Se dirá que es posible la reproducción fiel de los
+mensajes cuando la probabilidad de que la copia del mensaje que se
+obtiene en el punto de destino sea distinta del mensaje originalmente
