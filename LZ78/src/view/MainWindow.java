@@ -1,221 +1,501 @@
 package view;
 
 import controller.CompressionController;
+import model.CompressionResult;
+
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
-import java.awt.event.*;
+import java.io.File;
+import java.util.List;
 
 /**
  * Ventana principal de la aplicación de compresión LZ78
  */
 public class MainWindow extends JFrame {
     private CompressionController controller;
+    private JTabbedPane tabbedPane;
     
-    // Componentes de la interfaz
-    private JTextArea textArea;
-    private JButton btnLoadFile;
-    private JButton btnCompress;
-    private JButton btnDecompress;
-    private JButton btnSaveCompressed;
-    private JButton btnSaveDecompressed;
-    private JButton btnViewDictionary;
-    private JButton btnClear;
-    private JLabel lblStatus;
-    private JLabel lblFileInfo;
+    // Panel de Compresión
+    private JPanel compressionPanel;
+    private JTextArea inputTextArea;
+    private JTextArea compressedOutputArea;
+    private JTextArea statsArea;
+    private DictionaryViewer compressionDictionaryViewer;
+    private JButton loadFileButton;
+    private JButton compressButton;
+    private JButton saveCompressedButton;
+    private JButton saveDictionaryButton;
+    private JLabel compressionStatusLabel;
     
+    // Panel de Descompresión
+    private JPanel decompressionPanel;
+    private JTextArea decompressedOutputArea;
+    private JTextArea decompressionStatsArea;
+    private DictionaryViewer decompressionDictionaryViewer;
+    private JButton loadCompressedButton;
+    private JButton decompressButton;
+    private JButton saveDecompressedButton;
+    private JLabel decompressionStatusLabel;
+    
+    // Datos de compresión
+    private CompressionResult lastCompressionResult;
+    private CompressionResult lastDecompressionResult;
+    private String lastCompressedFileName;
+    private String lastOriginalFileName;
+
     public MainWindow() {
-        controller = new CompressionController(this);
+        controller = new CompressionController();
         initComponents();
-    }
-    
-    private void initComponents() {
+        layoutComponents();
+        setupListeners();
+        
         setTitle("Compresor LZ78 - Teoría de la Información");
-        setSize(800, 600);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(1200, 800);
         setLocationRelativeTo(null);
-        
-        // Panel principal
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
-        // Panel superior con botones
-        JPanel topPanel = createTopPanel();
-        mainPanel.add(topPanel, BorderLayout.NORTH);
-        
-        // Panel central con área de texto
-        JPanel centerPanel = createCenterPanel();
-        mainPanel.add(centerPanel, BorderLayout.CENTER);
-        
-        // Panel inferior con información
-        JPanel bottomPanel = createBottomPanel();
-        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
-        
-        add(mainPanel);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     }
-    
-    private JPanel createTopPanel() {
-        JPanel panel = new JPanel(new GridLayout(3, 3, 5, 5));
+
+    private void initComponents() {
+        tabbedPane = new JTabbedPane();
         
-        btnLoadFile = new JButton("Cargar Archivo");
-        btnLoadFile.setToolTipText("Cargar un archivo de texto para comprimir");
-        btnLoadFile.addActionListener(e -> controller.loadFile());
+        // Inicializar panel de compresión
+        initCompressionPanel();
         
-        btnCompress = new JButton("Comprimir");
-        btnCompress.setToolTipText("Comprimir el archivo cargado");
-        btnCompress.addActionListener(e -> controller.compress());
-        btnCompress.setEnabled(false);
-        
-        btnSaveCompressed = new JButton("Guardar Comprimido");
-        btnSaveCompressed.setToolTipText("Guardar el archivo comprimido");
-        btnSaveCompressed.addActionListener(e -> controller.saveCompressed());
-        btnSaveCompressed.setEnabled(false);
-        
-        btnDecompress = new JButton("Cargar y Descomprimir");
-        btnDecompress.setToolTipText("Cargar un archivo .lz78 y descomprimirlo");
-        btnDecompress.addActionListener(e -> controller.loadAndDecompress());
-        
-        btnSaveDecompressed = new JButton("Guardar Descomprimido");
-        btnSaveDecompressed.setToolTipText("Guardar el texto descomprimido");
-        btnSaveDecompressed.addActionListener(e -> controller.saveDecompressed());
-        btnSaveDecompressed.setEnabled(false);
-        
-        btnViewDictionary = new JButton("Ver Diccionario");
-        btnViewDictionary.setToolTipText("Mostrar el diccionario generado");
-        btnViewDictionary.addActionListener(e -> controller.showDictionary());
-        btnViewDictionary.setEnabled(false);
-        
-        btnClear = new JButton("Limpiar");
-        btnClear.setToolTipText("Limpiar el área de texto");
-        btnClear.addActionListener(e -> clearAll());
-        
-        JButton btnExit = new JButton("Salir");
-        btnExit.addActionListener(e -> System.exit(0));
-        
-        JButton btnHelp = new JButton("Ayuda");
-        btnHelp.addActionListener(e -> showHelp());
-        
-        panel.add(btnLoadFile);
-        panel.add(btnCompress);
-        panel.add(btnSaveCompressed);
-        panel.add(btnDecompress);
-        panel.add(btnSaveDecompressed);
-        panel.add(btnViewDictionary);
-        panel.add(btnClear);
-        panel.add(btnHelp);
-        panel.add(btnExit);
-        
-        return panel;
+        // Inicializar panel de descompresión
+        initDecompressionPanel();
     }
-    
-    private JPanel createCenterPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
+
+    private void initCompressionPanel() {
+        compressionPanel = new JPanel(new BorderLayout(10, 10));
+        compressionPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         
-        JLabel label = new JLabel("Contenido del Archivo:");
-        panel.add(label, BorderLayout.NORTH);
+        // Área de entrada
+        inputTextArea = new JTextArea(8, 40);
+        inputTextArea.setFont(new Font("Courier New", Font.PLAIN, 12));
+        inputTextArea.setLineWrap(true);
+        inputTextArea.setWrapStyleWord(true);
         
-        textArea = new JTextArea();
-        textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        textArea.setLineWrap(true);
-        textArea.setWrapStyleWord(true);
+        // Área de salida comprimida
+        compressedOutputArea = new JTextArea(8, 40);
+        compressedOutputArea.setFont(new Font("Courier New", Font.PLAIN, 11));
+        compressedOutputArea.setEditable(false);
+        compressedOutputArea.setLineWrap(true);
         
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        panel.add(scrollPane, BorderLayout.CENTER);
+        // Área de estadísticas
+        statsArea = new JTextArea(8, 40);
+        statsArea.setFont(new Font("Courier New", Font.PLAIN, 12));
+        statsArea.setEditable(false);
         
-        return panel;
-    }
-    
-    private JPanel createBottomPanel() {
-        JPanel panel = new JPanel(new BorderLayout(5, 5));
+        // Visor de diccionario
+        compressionDictionaryViewer = new DictionaryViewer();
         
-        lblFileInfo = new JLabel("Ningún archivo cargado");
-        lblFileInfo.setFont(new Font("Arial", Font.BOLD, 11));
-        panel.add(lblFileInfo, BorderLayout.NORTH);
+        // Botones
+        loadFileButton = new JButton("📁 Cargar Archivo");
+        compressButton = new JButton("🗜️ Comprimir");
+        saveCompressedButton = new JButton("💾 Guardar Comprimido");
+        saveDictionaryButton = new JButton("📄 Guardar Diccionario");
         
-        lblStatus = new JLabel("Listo");
-        lblStatus.setBorder(BorderFactory.createEtchedBorder());
-        panel.add(lblStatus, BorderLayout.SOUTH);
+        saveCompressedButton.setEnabled(false);
+        saveDictionaryButton.setEnabled(false);
         
-        return panel;
+        // Estado
+        compressionStatusLabel = new JLabel("Listo para comprimir");
+        compressionStatusLabel.setFont(new Font("Arial", Font.PLAIN, 11));
     }
-    
-    private void clearAll() {
-        textArea.setText("");
-        lblFileInfo.setText("Ningún archivo cargado");
-        lblStatus.setText("Listo");
-        btnCompress.setEnabled(false);
-        btnSaveCompressed.setEnabled(false);
-        btnSaveDecompressed.setEnabled(false);
-        btnViewDictionary.setEnabled(false);
-        controller.clear();
-    }
-    
-    private void showHelp() {
-        String help = "COMPRESOR LZ78 - AYUDA\n\n" +
-                "1. Comprimir un archivo:\n" +
-                "   - Click en 'Cargar Archivo'\n" +
-                "   - Click en 'Comprimir'\n" +
-                "   - Click en 'Guardar Comprimido'\n\n" +
-                "2. Descomprimir un archivo:\n" +
-                "   - Click en 'Cargar y Descomprimir'\n" +
-                "   - Seleccionar archivo .lz78\n" +
-                "   - Click en 'Guardar Descomprimido'\n\n" +
-                "3. Ver Diccionario:\n" +
-                "   - Después de comprimir o descomprimir\n" +
-                "   - Click en 'Ver Diccionario'\n\n" +
-                "Universidad Distrital Francisco José de Caldas\n" +
-                "Teoría de la Información 2025-III";
+
+    private void initDecompressionPanel() {
+        decompressionPanel = new JPanel(new BorderLayout(10, 10));
+        decompressionPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         
-        JOptionPane.showMessageDialog(this, help, "Ayuda", JOptionPane.INFORMATION_MESSAGE);
+        // Área de salida descomprimida
+        decompressedOutputArea = new JTextArea(12, 40);
+        decompressedOutputArea.setFont(new Font("Courier New", Font.PLAIN, 12));
+        decompressedOutputArea.setEditable(false);
+        decompressedOutputArea.setLineWrap(true);
+        decompressedOutputArea.setWrapStyleWord(true);
+        
+        // Área de estadísticas
+        decompressionStatsArea = new JTextArea(8, 40);
+        decompressionStatsArea.setFont(new Font("Courier New", Font.PLAIN, 12));
+        decompressionStatsArea.setEditable(false);
+        
+        // Visor de diccionario
+        decompressionDictionaryViewer = new DictionaryViewer();
+        
+        // Botones
+        loadCompressedButton = new JButton("📁 Cargar Archivo Comprimido");
+        decompressButton = new JButton("📦 Descomprimir");
+        saveDecompressedButton = new JButton("💾 Guardar Descomprimido");
+        
+        decompressButton.setEnabled(false);
+        saveDecompressedButton.setEnabled(false);
+        
+        // Estado
+        decompressionStatusLabel = new JLabel("Listo para descomprimir");
+        decompressionStatusLabel.setFont(new Font("Arial", Font.PLAIN, 11));
     }
-    
-    // Métodos públicos para el controlador
-    public void setTextArea(String text) {
-        textArea.setText(text);
+
+    private void layoutComponents() {
+        // Layout del panel de compresión
+        layoutCompressionPanel();
+        
+        // Layout del panel de descompresión
+        layoutDecompressionPanel();
+        
+        // Agregar pestañas
+        tabbedPane.addTab("Compresión", compressionPanel);
+        tabbedPane.addTab("Descompresión", decompressionPanel);
+        
+        add(tabbedPane, BorderLayout.CENTER);
     }
-    
-    public String getTextArea() {
-        return textArea.getText();
+
+    private void layoutCompressionPanel() {
+        // Panel superior: entrada y controles
+        JPanel topPanel = new JPanel(new BorderLayout(5, 5));
+        
+        JPanel inputPanel = new JPanel(new BorderLayout());
+        inputPanel.setBorder(new TitledBorder("Texto de Entrada"));
+        inputPanel.add(new JScrollPane(inputTextArea), BorderLayout.CENTER);
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        buttonPanel.add(loadFileButton);
+        buttonPanel.add(compressButton);
+        buttonPanel.add(saveCompressedButton);
+        buttonPanel.add(saveDictionaryButton);
+        
+        topPanel.add(inputPanel, BorderLayout.CENTER);
+        topPanel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        // Panel central: dividido entre salida y estadísticas
+        JSplitPane centerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        
+        JPanel outputPanel = new JPanel(new BorderLayout());
+        outputPanel.setBorder(new TitledBorder("Datos Codificados"));
+        outputPanel.add(new JScrollPane(compressedOutputArea), BorderLayout.CENTER);
+        
+        JPanel statsPanel = new JPanel(new BorderLayout());
+        statsPanel.setBorder(new TitledBorder("Estadísticas"));
+        statsPanel.add(new JScrollPane(statsArea), BorderLayout.CENTER);
+        
+        centerSplit.setLeftComponent(outputPanel);
+        centerSplit.setRightComponent(statsPanel);
+        centerSplit.setDividerLocation(400);
+        
+        // Panel inferior: diccionario
+        JPanel dictPanel = new JPanel(new BorderLayout());
+        dictPanel.setBorder(new TitledBorder("Diccionario Generado"));
+        dictPanel.add(compressionDictionaryViewer, BorderLayout.CENTER);
+        
+        // Split principal
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        mainSplit.setTopComponent(topPanel);
+        
+        JSplitPane bottomSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        bottomSplit.setTopComponent(centerSplit);
+        bottomSplit.setBottomComponent(dictPanel);
+        bottomSplit.setDividerLocation(200);
+        
+        mainSplit.setBottomComponent(bottomSplit);
+        mainSplit.setDividerLocation(200);
+        
+        compressionPanel.add(mainSplit, BorderLayout.CENTER);
+        compressionPanel.add(compressionStatusLabel, BorderLayout.SOUTH);
     }
-    
-    public void setStatus(String status) {
-        lblStatus.setText(status);
+
+    private void layoutDecompressionPanel() {
+        // Panel superior: controles
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        topPanel.add(loadCompressedButton);
+        topPanel.add(decompressButton);
+        topPanel.add(saveDecompressedButton);
+        
+        // Panel central: texto descomprimido y estadísticas
+        JSplitPane centerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        
+        JPanel outputPanel = new JPanel(new BorderLayout());
+        outputPanel.setBorder(new TitledBorder("Texto Descomprimido"));
+        outputPanel.add(new JScrollPane(decompressedOutputArea), BorderLayout.CENTER);
+        
+        JPanel statsPanel = new JPanel(new BorderLayout());
+        statsPanel.setBorder(new TitledBorder("Estadísticas"));
+        statsPanel.add(new JScrollPane(decompressionStatsArea), BorderLayout.CENTER);
+        
+        centerSplit.setLeftComponent(outputPanel);
+        centerSplit.setRightComponent(statsPanel);
+        centerSplit.setDividerLocation(500);
+        
+        // Panel inferior: diccionario
+        JPanel dictPanel = new JPanel(new BorderLayout());
+        dictPanel.setBorder(new TitledBorder("Diccionario Reconstruido"));
+        dictPanel.add(decompressionDictionaryViewer, BorderLayout.CENTER);
+        
+        // Split principal
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        mainSplit.setTopComponent(centerSplit);
+        mainSplit.setBottomComponent(dictPanel);
+        mainSplit.setDividerLocation(300);
+        
+        decompressionPanel.add(topPanel, BorderLayout.NORTH);
+        decompressionPanel.add(mainSplit, BorderLayout.CENTER);
+        decompressionPanel.add(decompressionStatusLabel, BorderLayout.SOUTH);
     }
-    
-    public void setFileInfo(String info) {
-        lblFileInfo.setText(info);
+
+    private void setupListeners() {
+        // Listeners de compresión
+        loadFileButton.addActionListener(e -> loadFile());
+        compressButton.addActionListener(e -> compress());
+        saveCompressedButton.addActionListener(e -> saveCompressed());
+        saveDictionaryButton.addActionListener(e -> saveDictionary());
+        
+        // Listeners de descompresión
+        loadCompressedButton.addActionListener(e -> loadCompressedFile());
+        decompressButton.addActionListener(e -> decompress());
+        saveDecompressedButton.addActionListener(e -> saveDecompressed());
     }
+
+    // ==================== MÉTODOS DE COMPRESIÓN ====================
     
-    public void enableCompress(boolean enable) {
-        btnCompress.setEnabled(enable);
+    private void loadFile() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new FileNameExtensionFilter("Archivos de Texto", "txt"));
+        
+        if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            try {
+                String content = controller.loadTextFile(file.getAbsolutePath());
+                inputTextArea.setText(content);
+                
+                // Guardar el nombre del archivo para usarlo al comprimir
+                lastOriginalFileName = file.getName();
+                
+                compressionStatusLabel.setText("Archivo cargado: " + file.getName());
+                compressionStatusLabel.setForeground(Color.BLUE);
+            } catch (Exception ex) {
+                showError("Error al cargar archivo", ex.getMessage());
+                compressionStatusLabel.setText("Error: " + ex.getMessage());
+                compressionStatusLabel.setForeground(Color.RED);
+            }
+        }
     }
-    
-    public void enableSaveCompressed(boolean enable) {
-        btnSaveCompressed.setEnabled(enable);
+
+    private void compress() {
+        String text = inputTextArea.getText();
+        
+        if (text.trim().isEmpty()) {
+            showError("Archivo vacío", "El texto de entrada está vacío. Por favor, cargue o escriba un texto.");
+            return;
+        }
+
+        try {
+            // Comprimir
+            compressionStatusLabel.setText("Comprimiendo...");
+            compressionStatusLabel.setForeground(Color.BLUE);
+            
+            lastCompressionResult = controller.compressText(text);
+            
+            // Mostrar datos codificados
+            compressedOutputArea.setText(lastCompressionResult.getEncodedDataString());
+            
+            // Mostrar estadísticas
+            statsArea.setText(lastCompressionResult.getStatistics());
+            
+            // Mostrar diccionario
+            compressionDictionaryViewer.displayDictionary(
+                lastCompressionResult.getDictionary().getReverseDictionary());
+            
+            // Habilitar botones de guardado
+            saveCompressedButton.setEnabled(true);
+            saveDictionaryButton.setEnabled(true);
+            
+            compressionStatusLabel.setText("Compresión exitosa - " + 
+                String.format("%.2f%% de compresión", lastCompressionResult.getCompressionPercentage()));
+            compressionStatusLabel.setForeground(new Color(0, 128, 0));
+            
+        } catch (Exception ex) {
+            showError("Error al comprimir", ex.getMessage());
+            compressionStatusLabel.setText("Error: " + ex.getMessage());
+            compressionStatusLabel.setForeground(Color.RED);
+        }
     }
-    
-    public void enableSaveDecompressed(boolean enable) {
-        btnSaveDecompressed.setEnabled(enable);
+
+    private void saveCompressed() {
+        if (lastCompressionResult == null) {
+            showError("Sin datos", "No hay datos comprimidos para guardar.");
+            return;
+        }
+
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new FileNameExtensionFilter("Archivos LZ78", "lz78"));
+        
+        // Generar nombre de archivo basado en el archivo original
+        String defaultFileName = "comprimido.lz78";
+        if (lastOriginalFileName != null && !lastOriginalFileName.isEmpty()) {
+            // Remover la extensión .txt y agregar _comprimido.lz78
+            String baseName = lastOriginalFileName;
+            if (baseName.toLowerCase().endsWith(".txt")) {
+                baseName = baseName.substring(0, baseName.length() - 4);
+            }
+            defaultFileName = baseName + ".lz78";
+        }
+        
+        fileChooser.setSelectedFile(new File(defaultFileName));
+        
+        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            try {
+                controller.saveCompressedFile(lastCompressionResult, file.getAbsolutePath());
+                showInfo("Guardado exitoso", "El archivo comprimido se guardó correctamente.");
+                compressionStatusLabel.setText("Archivo guardado: " + file.getName());
+            } catch (Exception ex) {
+                showError("Error al guardar", ex.getMessage());
+            }
+        }
     }
-    
-    public void enableViewDictionary(boolean enable) {
-        btnViewDictionary.setEnabled(enable);
+
+    private void saveDictionary() {
+        if (lastCompressionResult == null) {
+            showError("Sin datos", "No hay diccionario para guardar.");
+            return;
+        }
+
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new FileNameExtensionFilter("Archivos de Texto", "txt"));
+        fileChooser.setSelectedFile(new File("diccionario_compresion.txt"));
+        
+        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            try {
+                controller.saveDictionaryAndEncoded(lastCompressionResult, file.getAbsolutePath());
+                showInfo("Guardado exitoso", "El diccionario y datos codificados se guardaron correctamente.");
+            } catch (Exception ex) {
+                showError("Error al guardar", ex.getMessage());
+            }
+        }
     }
+
+    // ==================== MÉTODOS DE DESCOMPRESIÓN ====================
     
-    public void showError(String message) {
-        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
+    private void loadCompressedFile() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new FileNameExtensionFilter("Archivos LZ78", "lz78"));
+        
+        if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            try {
+                List<CompressionResult.EncodedPair> encodedData = 
+                    controller.loadCompressedFile(file.getAbsolutePath());
+                
+                // Guardar el nombre del archivo para usarlo al descomprimir
+                lastCompressedFileName = file.getName();
+                
+                // Crear resultado temporal para mostrar información
+                CompressionResult tempResult = new CompressionResult();
+                tempResult.setEncodedData(encodedData);
+                
+                lastDecompressionResult = tempResult;
+                
+                decompressionStatsArea.setText("Archivo cargado correctamente.\n\n" +
+                    "Pares codificados: " + encodedData.size() + "\n" +
+                    "Tamaño estimado: " + (encodedData.size() * 6) + " bytes\n\n" +
+                    "Presione 'Descomprimir' para continuar.");
+                
+                decompressButton.setEnabled(true);
+                decompressionStatusLabel.setText("Archivo cargado: " + file.getName());
+                decompressionStatusLabel.setForeground(Color.BLUE);
+                
+            } catch (Exception ex) {
+                showError("Error al cargar archivo", ex.getMessage());
+                decompressionStatusLabel.setText("Error: " + ex.getMessage());
+                decompressionStatusLabel.setForeground(Color.RED);
+                decompressButton.setEnabled(false);
+            }
+        }
     }
-    
-    public void showSuccess(String message) {
-        JOptionPane.showMessageDialog(this, message, "Éxito", JOptionPane.INFORMATION_MESSAGE);
+
+    private void decompress() {
+        if (lastDecompressionResult == null || lastDecompressionResult.getEncodedData() == null) {
+            showError("Sin datos", "No hay datos comprimidos cargados.");
+            return;
+        }
+
+        try {
+            decompressionStatusLabel.setText("Descomprimiendo...");
+            decompressionStatusLabel.setForeground(Color.BLUE);
+            
+            // Descomprimir
+            lastDecompressionResult = controller.decompressData(
+                lastDecompressionResult.getEncodedData());
+            
+            // Mostrar texto descomprimido
+            decompressedOutputArea.setText(lastDecompressionResult.getDecompressedText());
+            
+            // Mostrar estadísticas
+            decompressionStatsArea.setText(lastDecompressionResult.getStatistics());
+            
+            // Mostrar diccionario
+            decompressionDictionaryViewer.displayDictionary(
+                lastDecompressionResult.getDictionary().getReverseDictionary());
+            
+            // Habilitar botón de guardado
+            saveDecompressedButton.setEnabled(true);
+            
+            decompressionStatusLabel.setText("Descompresión exitosa");
+            decompressionStatusLabel.setForeground(new Color(0, 128, 0));
+            
+        } catch (Exception ex) {
+            showError("Error al descomprimir", ex.getMessage());
+            decompressionStatusLabel.setText("Error: " + ex.getMessage());
+            decompressionStatusLabel.setForeground(Color.RED);
+        }
     }
+
+    private void saveDecompressed() {
+        if (lastDecompressionResult == null || 
+            lastDecompressionResult.getDecompressedText() == null) {
+            showError("Sin datos", "No hay texto descomprimido para guardar.");
+            return;
+        }
+
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new FileNameExtensionFilter("Archivos de Texto", "txt"));
+        
+        // Generar nombre de archivo basado en el archivo .lz78 original
+        String defaultFileName = "descomprimido.txt";
+        if (lastCompressedFileName != null && !lastCompressedFileName.isEmpty()) {
+            // Remover la extensión .lz78 y agregar _descomprimido.txt
+            String baseName = lastCompressedFileName;
+            if (baseName.toLowerCase().endsWith(".lz78")) {
+                baseName = baseName.substring(0, baseName.length() - 5);
+            }
+            defaultFileName = baseName + "_descomprimido.txt";
+        }
+        
+        fileChooser.setSelectedFile(new File(defaultFileName));
+        
+        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            try {
+                controller.saveDecompressedFile(
+                    lastDecompressionResult.getDecompressedText(), 
+                    file.getAbsolutePath());
+                showInfo("Guardado exitoso", "El archivo descomprimido se guardó correctamente.");
+                decompressionStatusLabel.setText("Archivo guardado: " + file.getName());
+            } catch (Exception ex) {
+                showError("Error al guardar", ex.getMessage());
+            }
+        }
+    }
+
+    // ==================== MÉTODOS DE UTILIDAD ====================
     
-    public void showStatistics(String stats) {
-        JTextArea textArea = new JTextArea(stats);
-        textArea.setEditable(false);
-        textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setPreferredSize(new Dimension(500, 200));
-        JOptionPane.showMessageDialog(this, scrollPane, "Estadísticas de Compresión", 
-                                      JOptionPane.INFORMATION_MESSAGE);
+    private void showError(String title, String message) {
+        JOptionPane.showMessageDialog(this, message, title, JOptionPane.ERROR_MESSAGE);
+    }
+
+    private void showInfo(String title, String message) {
+        JOptionPane.showMessageDialog(this, message, title, JOptionPane.INFORMATION_MESSAGE);
     }
 }

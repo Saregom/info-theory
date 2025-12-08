@@ -1,63 +1,109 @@
 package view;
 
-import model.Dictionary;
 import javax.swing.*;
 import java.awt.*;
+import java.util.Map;
 
 /**
- * Ventana para visualizar el diccionario generado por LZ78
+ * Panel para visualizar el diccionario generado
  */
-public class DictionaryViewer extends JDialog {
-    
-    public DictionaryViewer(JFrame parent, Dictionary dictionary) {
-        super(parent, "Diccionario LZ78", true);
-        initComponents(dictionary);
+public class DictionaryViewer extends JPanel {
+    private JTextArea dictionaryArea;
+    private JScrollPane scrollPane;
+    private JLabel statusLabel;
+
+    public DictionaryViewer() {
+        initComponents();
+        layoutComponents();
     }
-    
-    private void initComponents(Dictionary dictionary) {
-        setSize(600, 500);
-        setLocationRelativeTo(getParent());
-        setLayout(new BorderLayout(10, 10));
+
+    private void initComponents() {
+        dictionaryArea = new JTextArea();
+        dictionaryArea.setEditable(false);
+        dictionaryArea.setFont(new Font("Courier New", Font.PLAIN, 12));
+        dictionaryArea.setMargin(new Insets(10, 10, 10, 10));
         
-        // Panel superior con título
-        JPanel topPanel = new JPanel();
-        topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
-        JLabel titleLabel = new JLabel("Diccionario Generado por el Algoritmo LZ78");
+        scrollPane = new JScrollPane(dictionaryArea);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        
+        statusLabel = new JLabel("Diccionario vacío");
+        statusLabel.setFont(new Font("Arial", Font.PLAIN, 11));
+        statusLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+    }
+
+    private void layoutComponents() {
+        setLayout(new BorderLayout());
+        
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        
+        JLabel titleLabel = new JLabel("Diccionario LZ78");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        topPanel.add(titleLabel);
-        add(topPanel, BorderLayout.NORTH);
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        headerPanel.add(statusLabel, BorderLayout.EAST);
         
-        // Área de texto con el diccionario
-        JTextArea textArea = new JTextArea();
-        textArea.setText(dictionary.getDictionaryAsString());
-        textArea.setEditable(false);
-        textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        add(headerPanel, BorderLayout.NORTH);
         add(scrollPane, BorderLayout.CENTER);
-        
-        // Panel inferior con botón de cerrar
-        JPanel bottomPanel = new JPanel();
-        bottomPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 10, 10));
-        
-        JButton btnClose = new JButton("Cerrar");
-        btnClose.addActionListener(e -> dispose());
-        bottomPanel.add(btnClose);
-        
-        JButton btnExport = new JButton("Exportar");
-        btnExport.setToolTipText("Copiar al portapapeles");
-        btnExport.addActionListener(e -> {
-            textArea.selectAll();
-            textArea.copy();
-            textArea.setSelectionEnd(0);
-            JOptionPane.showMessageDialog(this, 
-                "Diccionario copiado al portapapeles", 
-                "Éxito", 
-                JOptionPane.INFORMATION_MESSAGE);
-        });
-        bottomPanel.add(btnExport);
-        
-        add(bottomPanel, BorderLayout.SOUTH);
+    }
+
+    /**
+     * Muestra el diccionario en el área de texto
+     */
+    public void displayDictionary(Map<Integer, String> dictionary) {
+        if (dictionary == null || dictionary.isEmpty()) {
+            dictionaryArea.setText("El diccionario está vacío.");
+            statusLabel.setText("Entradas: 0");
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("╔════════════════════════════════════════════════════════════╗\n");
+        sb.append("║                    DICCIONARIO LZ78                        ║\n");
+        sb.append("╠════════════════════════════════════════════════════════════╣\n");
+        sb.append("║  Índice  │  Secuencia                                      ║\n");
+        sb.append("╠══════════╪═════════════════════════════════════════════════╣\n");
+
+        dictionary.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> {
+                String sequence = escapeString(entry.getValue());
+                sb.append(String.format("║  %-7d │ %-47s ║\n", 
+                    entry.getKey(), 
+                    truncate(sequence, 47)));
+            });
+
+        sb.append("╚══════════╧═════════════════════════════════════════════════╝\n");
+
+        dictionaryArea.setText(sb.toString());
+        dictionaryArea.setCaretPosition(0);
+        statusLabel.setText("Entradas: " + dictionary.size());
+    }
+
+    /**
+     * Limpia el diccionario
+     */
+    public void clear() {
+        dictionaryArea.setText("");
+        statusLabel.setText("Diccionario vacío");
+    }
+
+    /**
+     * Escapa caracteres especiales
+     */
+    private String escapeString(String str) {
+        return str.replace("\n", "\\n")
+                  .replace("\r", "\\r")
+                  .replace("\t", "\\t")
+                  .replace("\"", "\\\"");
+    }
+
+    /**
+     * Trunca un string si es muy largo
+     */
+    private String truncate(String str, int maxLength) {
+        if (str.length() <= maxLength) {
+            return str;
+        }
+        return str.substring(0, maxLength - 3) + "...";
     }
 }

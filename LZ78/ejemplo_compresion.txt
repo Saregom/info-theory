@@ -1,6 +1,0 @@
-ABRACADABRA
-Este texto tiene palabras repetidas.
-La palabra ABRACADABRA es un buen ejemplo.
-ABRACADABRA aparece varias veces aquí.
-El compresor LZ78 aprovecha estas repeticiones.
-ABRACADABRA, ABRACADABRA, ABRACADABRA!

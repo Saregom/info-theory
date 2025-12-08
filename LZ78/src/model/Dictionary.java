@@ -1,110 +1,107 @@
 package model;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
- * Clase que representa el diccionario utilizado en el algoritmo LZ78
+ * Representa el diccionario usado en el algoritmo LZ78
  */
 public class Dictionary {
-    private Map<String, Integer> encodingDict;
-    private Map<Integer, String> decodingDict;
+    private Map<String, Integer> dictionary;
+    private Map<Integer, String> reverseDictionary;
     private int nextIndex;
-    
+
     public Dictionary() {
-        encodingDict = new HashMap<>();
-        decodingDict = new HashMap<>();
-        nextIndex = 1; // El índice 0 se reserva para cadena vacía
+        this.dictionary = new HashMap<>();
+        this.reverseDictionary = new HashMap<>();
+        this.nextIndex = 1;
     }
-    
+
     /**
-     * Agrega una nueva entrada al diccionario
+     * Agrega una entrada al diccionario
      */
-    public int addEntry(String phrase) {
-        if (!encodingDict.containsKey(phrase)) {
-            encodingDict.put(phrase, nextIndex);
-            decodingDict.put(nextIndex, phrase);
+    public int add(String sequence) {
+        if (!dictionary.containsKey(sequence)) {
+            dictionary.put(sequence, nextIndex);
+            reverseDictionary.put(nextIndex, sequence);
             nextIndex++;
-            return nextIndex - 1;
         }
-        return encodingDict.get(phrase);
+        return dictionary.get(sequence);
     }
-    
+
     /**
-     * Busca una frase en el diccionario de codificación
+     * Obtiene el índice de una secuencia
      */
-    public Integer getIndex(String phrase) {
-        return encodingDict.get(phrase);
+    public Integer getIndex(String sequence) {
+        return dictionary.get(sequence);
     }
-    
+
     /**
-     * Busca una frase por su índice en el diccionario de decodificación
+     * Obtiene la secuencia dado un índice
      */
-    public String getPhrase(int index) {
-        return decodingDict.get(index);
+    public String getSequence(int index) {
+        return reverseDictionary.get(index);
     }
-    
+
     /**
-     * Verifica si una frase existe en el diccionario
+     * Verifica si una secuencia existe en el diccionario
      */
-    public boolean contains(String phrase) {
-        return encodingDict.containsKey(phrase);
+    public boolean contains(String sequence) {
+        return dictionary.containsKey(sequence);
     }
-    
+
     /**
-     * Obtiene el tamaño actual del diccionario
+     * Retorna el tamaño del diccionario
      */
     public int size() {
-        return encodingDict.size();
+        return dictionary.size();
     }
-    
+
     /**
      * Limpia el diccionario
      */
     public void clear() {
-        encodingDict.clear();
-        decodingDict.clear();
+        dictionary.clear();
+        reverseDictionary.clear();
         nextIndex = 1;
     }
-    
+
     /**
-     * Obtiene una representación en texto del diccionario para visualización
+     * Obtiene una copia del diccionario para visualización
      */
-    public String getDictionaryAsString() {
+    public Map<Integer, String> getReverseDictionary() {
+        return new HashMap<>(reverseDictionary);
+    }
+
+    /**
+     * Retorna una representación ordenada del diccionario
+     */
+    public String toFormattedString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("Índice\t| Frase\n");
-        sb.append("--------------------------------------\n");
+        sb.append("DICCIONARIO LZ78\n");
+        sb.append("================\n\n");
         
-        List<Integer> indices = new ArrayList<>(decodingDict.keySet());
-        indices.sort(Integer::compareTo);
+        List<Integer> indices = new ArrayList<>(reverseDictionary.keySet());
+        Collections.sort(indices);
         
-        for (Integer index : indices) {
-            String phrase = decodingDict.get(index);
-            String displayPhrase = phrase.replace("\n", "\\n")
-                                         .replace("\r", "\\r")
-                                         .replace("\t", "\\t");
-            sb.append(String.format("%d\t| %s\n", index, displayPhrase));
+        for (int index : indices) {
+            String sequence = reverseDictionary.get(index);
+            sb.append(String.format("%-5d -> %s\n", index, escapeString(sequence)));
         }
-        
-        sb.append("--------------------------------------\n");
-        sb.append("Total de entradas: " + size() + "\n");
         
         return sb.toString();
     }
-    
+
     /**
-     * Obtiene el mapa de codificación (para exportar)
+     * Escapa caracteres especiales para visualización
      */
-    public Map<String, Integer> getEncodingDict() {
-        return new HashMap<>(encodingDict);
+    private String escapeString(String str) {
+        return str.replace("\n", "\\n")
+                  .replace("\r", "\\r")
+                  .replace("\t", "\\t");
     }
-    
-    /**
-     * Obtiene el mapa de decodificación (para exportar)
-     */
-    public Map<Integer, String> getDecodingDict() {
-        return new HashMap<>(decodingDict);
+
+    @Override
+    public String toString() {
+        return "Dictionary{size=" + size() + "}";
     }
 }
