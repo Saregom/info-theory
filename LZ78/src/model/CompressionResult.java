@@ -18,6 +18,9 @@ public class CompressionResult {
     // Diccionario generado
     private Dictionary dictionary;
     
+    // Extensión del archivo original
+    private String originalFileExtension;
+    
     public CompressionResult() {
         this.success = true;
         this.errorMessage = "";
@@ -78,6 +81,14 @@ public class CompressionResult {
     
     public void setDictionary(Dictionary dictionary) {
         this.dictionary = dictionary;
+    }
+    
+    public String getOriginalFileExtension() {
+        return originalFileExtension;
+    }
+    
+    public void setOriginalFileExtension(String originalFileExtension) {
+        this.originalFileExtension = originalFileExtension;
     }
     
     /**

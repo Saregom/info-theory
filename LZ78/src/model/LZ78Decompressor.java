@@ -69,6 +69,16 @@ public class LZ78Decompressor {
                     return result;
                 }
                 
+                // Leer la extensión del archivo original
+                int extensionLength = dis.readUnsignedByte();
+                String originalExtension = "";
+                if (extensionLength > 0) {
+                    byte[] extBytes = new byte[extensionLength];
+                    dis.readFully(extBytes);
+                    originalExtension = new String(extBytes);
+                }
+                result.setOriginalFileExtension(originalExtension);
+                
                 // Leer tamaño del diccionario
                 int dictSize = dis.readInt();
                 
@@ -95,7 +105,8 @@ public class LZ78Decompressor {
                 String decompressedText = decompressText(encoded, dictionary);
                 
                 result.setOriginalText(decompressedText);
-                result.setOriginalSize(decompressedText.getBytes("UTF-8").length);
+                // Calcular tamaño usando ISO-8859-1 para mantener bytes 1:1
+                result.setOriginalSize(decompressedText.getBytes("ISO-8859-1").length);
                 result.setDictionary(dictionary);
                 result.setSuccess(true);
             }
@@ -130,10 +141,11 @@ public class LZ78Decompressor {
             // Leer longitud de la frase
             int phraseLength = readVariableInt(dis);
             
-            // Leer la frase
+            // Leer la frase byte por byte (ISO-8859-1)
             StringBuilder phrase = new StringBuilder();
             for (int j = 0; j < phraseLength; j++) {
-                phrase.append(dis.readChar());
+                // Leer byte y convertir a char (0-255)
+                phrase.append((char) dis.readUnsignedByte());
             }
             
             // Agregar al diccionario
@@ -158,7 +170,8 @@ public class LZ78Decompressor {
             // Leer cada par
             for (int i = 0; i < count; i++) {
                 int index = readVariableInt(dis);
-                char character = dis.readChar();
+                // Leer carácter como byte (0-255) para preservar binarios
+                char character = (char) dis.readUnsignedByte();
                 encoded.add(new LZ78Compressor.EncodedPair(index, character));
             }
         } catch (EOFException e) {
@@ -230,9 +243,26 @@ public class LZ78Decompressor {
     }
     
     /**
-     * Guarda el texto descomprimido en un archivo
+     * Guarda el archivo descomprimido en formato binario puro
+     * IMPORTANTE: Para archivos binarios (imágenes, Word, PDF, etc.)
+     * Solo guarda los bytes originales sin agregar nada más
+     * Usa ISO-8859-1 para mantener la correspondencia 1:1 con bytes
      */
     public void saveDecompressedFile(File outputFile, String text) throws IOException {
+        // Convertir el string a bytes usando ISO-8859-1 para preservar datos binarios
+        byte[] bytes = text.getBytes("ISO-8859-1");
+        try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+            fos.write(bytes);
+            fos.flush(); // Asegurar que todos los datos se escriban
+        }
+    }
+    
+    /**
+     * Guarda archivo de texto con contenido legible
+     * IMPORTANTE: Para archivos de texto (.txt, .log, etc.)
+     * Puede incluir el diccionario y otro contenido adicional
+     */
+    public void saveDecompressedTextFile(File outputFile, String text) throws IOException {
         try (BufferedWriter writer = new BufferedWriter(
                 new OutputStreamWriter(new FileOutputStream(outputFile), "UTF-8"))) {
             writer.write(text);

@@ -62,8 +62,21 @@ public class LZ78Compressor {
                 return result;
             }
             
-            // Leer el contenido del archivo
-            String text = readFile(inputFile);
+            // Leer el archivo como bytes (funciona para texto y binarios)
+            byte[] fileBytes = readFileAsBytes(inputFile);
+            
+            // Guardar la extensión del archivo original
+            String fileName = inputFile.getName();
+            String extension = "";
+            int lastDot = fileName.lastIndexOf('.');
+            if (lastDot > 0 && lastDot < fileName.length() - 1) {
+                extension = fileName.substring(lastDot + 1);
+            }
+            result.setOriginalFileExtension(extension);
+            
+            // Convertir bytes a String para el algoritmo LZ78
+            // Usamos ISO-8859-1 que mapea 1:1 con bytes (0-255)
+            String text = new String(fileBytes, "ISO-8859-1");
             result.setOriginalText(text);
             result.setOriginalSize(inputFile.length());
             
@@ -91,18 +104,17 @@ public class LZ78Compressor {
     }
     
     /**
-     * Lee el contenido completo de un archivo
+     * Lee el archivo completo como bytes (funciona para texto y binarios)
      */
-    private String readFile(File file) throws IOException {
-        StringBuilder content = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(new FileInputStream(file), "UTF-8"))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                content.append(line).append("\n");
+    private byte[] readFileAsBytes(File file) throws IOException {
+        byte[] data = new byte[(int) file.length()];
+        try (FileInputStream fis = new FileInputStream(file)) {
+            int bytesRead = fis.read(data);
+            if (bytesRead != data.length) {
+                throw new IOException("No se pudo leer el archivo completo");
             }
         }
-        return content.toString();
+        return data;
     }
     
     /**
@@ -160,8 +172,8 @@ public class LZ78Compressor {
         for (EncodedPair pair : encoded) {
             // Usar codificación variable para índices pequeños
             writeVariableInt(dos, pair.getIndex());
-            // Los caracteres siguen siendo 2 bytes (UTF-16)
-            dos.writeChar(pair.getCharacter());
+            // Escribir el carácter como byte (ISO-8859-1) para preservar binarios
+            dos.writeByte((byte) pair.getCharacter());
         }
         
         dos.flush();
@@ -193,6 +205,7 @@ public class LZ78Compressor {
      * Guarda los datos comprimidos en un archivo incluyendo el diccionario
      * Formato del archivo:
      * [HEADER: "LZ78" + versión]
+     * [Extensión del archivo original (longitud + string)]
      * [Tamaño del diccionario]
      * [Diccionario serializado]
      * [Datos comprimidos (pares índice-carácter)]
@@ -204,6 +217,14 @@ public class LZ78Compressor {
             // Escribir header con identificador y versión
             dos.writeBytes("LZ78");
             dos.writeByte(1); // Versión del formato
+            
+            // Escribir la extensión del archivo original
+            String extension = result.getOriginalFileExtension();
+            if (extension == null) extension = "";
+            dos.writeByte(extension.length());
+            if (extension.length() > 0) {
+                dos.writeBytes(extension);
+            }
             
             // Serializar el diccionario
             Dictionary dict = result.getDictionary();
@@ -246,9 +267,10 @@ public class LZ78Compressor {
             // Escribir longitud de la frase
             writeVariableInt(dos, phrase.length());
             
-            // Escribir la frase como chars
-            for (char c : phrase.toCharArray()) {
-                dos.writeChar(c);
+            // Escribir la frase byte por byte (ISO-8859-1 para preservar binarios)
+            for (int j = 0; j < phrase.length(); j++) {
+                // Convertir char a byte usando ISO-8859-1 (mapeo 1:1)
+                dos.writeByte((byte) phrase.charAt(j));
             }
         }
         

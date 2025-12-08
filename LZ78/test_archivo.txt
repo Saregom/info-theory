@@ -1,0 +1,6 @@
+Este es un archivo de prueba para el compresor LZ78.
+El compresor LZ78 funciona mejor con texto que tiene repeticiones.
+Este texto tiene varias palabras repetidas como: texto, compresor, LZ78.
+La palabra "compresor" aparece varias veces.
+La palabra "texto" también aparece múltiples veces.
+Con archivos más grandes, el compresor LZ78 es más eficiente.
