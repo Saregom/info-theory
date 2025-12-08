@@ -59,6 +59,43 @@ public class CompressionController {
     }
 
     /**
+     * Carga un archivo binario para comprimir
+     * @param filePath Ruta del archivo
+     * @return Contenido del archivo como String (bytes convertidos a chars)
+     * @throws IOException Si hay error al leer
+     */
+    public String loadBinaryFile(String filePath) throws IOException {
+        File file = new File(filePath);
+        
+        if (!file.exists()) {
+            throw new IOException("El archivo no existe");
+        }
+        
+        if (!file.canRead()) {
+            throw new IOException("El archivo no es legible");
+        }
+        
+        if (file.length() == 0) {
+            throw new IOException("El archivo está vacío");
+        }
+
+        // Leer todos los bytes del archivo
+        byte[] fileBytes;
+        try (FileInputStream fis = new FileInputStream(file)) {
+            fileBytes = fis.readAllBytes();
+        }
+
+        // Convertir bytes a String para el algoritmo LZ78
+        StringBuilder sb = new StringBuilder(fileBytes.length);
+        for (byte b : fileBytes) {
+            // Convertir cada byte a char (0-255)
+            sb.append((char) (b & 0xFF));
+        }
+
+        return sb.toString();
+    }
+
+    /**
      * Comprime un texto
      * @param text Texto a comprimir
      * @return Resultado de la compresión
@@ -75,9 +112,10 @@ public class CompressionController {
      * Guarda el archivo comprimido en formato .lz78
      * @param result Resultado de la compresión
      * @param outputPath Ruta donde guardar
+     * @param originalExtension Extensión original del archivo (ej: ".txt", ".docx")
      * @throws IOException Si hay error al escribir
      */
-    public void saveCompressedFile(CompressionResult result, String outputPath) throws IOException {
+    public void saveCompressedFile(CompressionResult result, String outputPath, String originalExtension) throws IOException {
         if (!outputPath.toLowerCase().endsWith(LZ78_EXTENSION)) {
             outputPath += LZ78_EXTENSION;
         }
@@ -87,6 +125,9 @@ public class CompressionController {
             
             // Escribir número mágico
             dos.writeUTF(LZ78_MAGIC_NUMBER);
+            
+            // Escribir extensión original (nueva)
+            dos.writeUTF(originalExtension != null ? originalExtension : "");
             
             // Escribir tamaño original
             dos.writeLong(result.getOriginalSize());
@@ -106,12 +147,12 @@ public class CompressionController {
     }
 
     /**
-     * Carga un archivo comprimido .lz78
+     * Carga un archivo comprimido .lz78 con extensión original
      * @param filePath Ruta del archivo
-     * @return Datos codificados
+     * @return Array con [0]=extensión original, [1]=datos codificados
      * @throws IOException Si hay error al leer o el formato es incorrecto
      */
-    public List<CompressionResult.EncodedPair> loadCompressedFile(String filePath) throws IOException {
+    public Object[] loadCompressedFileWithExtension(String filePath) throws IOException {
         File file = new File(filePath);
         
         if (!file.exists()) {
@@ -127,6 +168,7 @@ public class CompressionController {
         }
 
         List<CompressionResult.EncodedPair> encodedData = new ArrayList<>();
+        String originalExtension = "";
 
         try (DataInputStream dis = new DataInputStream(
                 new BufferedInputStream(new FileInputStream(file)))) {
@@ -137,8 +179,11 @@ public class CompressionController {
                 throw new IOException("Archivo incompatible. No es un archivo LZ78 válido");
             }
             
+            // Leer extensión original
+            originalExtension = dis.readUTF();
+            
             // Leer tamaño original (solo para información)
-            long originalSize = dis.readLong();
+            dis.readLong();
             
             // Leer número de pares
             int pairCount = dis.readInt();
@@ -157,7 +202,19 @@ public class CompressionController {
             throw new IOException("Archivo corrupto: fin de archivo inesperado");
         }
 
-        return encodedData;
+        return new Object[]{originalExtension, encodedData};
+    }
+
+    /**
+     * Carga un archivo comprimido .lz78 (versión legacy)
+     * @param filePath Ruta del archivo
+     * @return Datos codificados
+     * @throws IOException Si hay error al leer o el formato es incorrecto
+     */
+    @SuppressWarnings("unchecked")
+    public List<CompressionResult.EncodedPair> loadCompressedFile(String filePath) throws IOException {
+        Object[] result = loadCompressedFileWithExtension(filePath);
+        return (List<CompressionResult.EncodedPair>) result[1];
     }
 
     /**
@@ -179,6 +236,22 @@ public class CompressionController {
         try (BufferedWriter writer = new BufferedWriter(
                 new OutputStreamWriter(new FileOutputStream(outputPath), StandardCharsets.UTF_8))) {
             writer.write(text);
+        }
+    }
+
+    /**
+     * Guarda el archivo binario descomprimido
+     * @param text String con los bytes del archivo (chars 0-255)
+     * @param outputPath Ruta donde guardar
+     * @throws IOException Si hay error al escribir
+     */
+    public void saveBinaryFile(String text, String outputPath) throws IOException {
+        try (FileOutputStream fos = new FileOutputStream(outputPath)) {
+            byte[] bytes = new byte[text.length()];
+            for (int i = 0; i < text.length(); i++) {
+                bytes[i] = (byte) text.charAt(i);
+            }
+            fos.write(bytes);
         }
     }
 

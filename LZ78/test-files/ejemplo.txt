@@ -1,0 +1,4 @@
+Este es un archivo de prueba para comprobar el funcionamiento del compresor LZ78.
+El algoritmo LZ78 es un algoritmo de compresión sin pérdida que utiliza un diccionario.
+ABABABABABABABABABAB
+Este texto tiene repeticiones para ver cómo funciona la compresión.

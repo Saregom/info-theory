@@ -45,6 +45,7 @@ public class MainWindow extends JFrame {
     private CompressionResult lastDecompressionResult;
     private String lastCompressedFileName;
     private String lastOriginalFileName;
+    private String lastOriginalFilePath; // Path completo del archivo a comprimir
 
     public MainWindow() {
         controller = new CompressionController();
@@ -260,18 +261,42 @@ public class MainWindow extends JFrame {
     
     private void loadFile() {
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setFileFilter(new FileNameExtensionFilter("Archivos de Texto", "txt"));
+        
+        // Agregar filtros para diferentes tipos de archivos
+        fileChooser.addChoosableFileFilter(new FileNameExtensionFilter(
+            "Todos los archivos soportados", 
+            "txt", "docx", "doc", "xlsx", "xls", "pdf", "jpg", "jpeg", "png", "gif", "zip", "rar"));
+        fileChooser.addChoosableFileFilter(new FileNameExtensionFilter("Archivos de Texto", "txt"));
+        fileChooser.addChoosableFileFilter(new FileNameExtensionFilter("Documentos Word", "docx", "doc"));
+        fileChooser.addChoosableFileFilter(new FileNameExtensionFilter("Hojas de cálculo Excel", "xlsx", "xls"));
+        fileChooser.addChoosableFileFilter(new FileNameExtensionFilter("Archivos PDF", "pdf"));
+        fileChooser.addChoosableFileFilter(new FileNameExtensionFilter("Imágenes", "jpg", "jpeg", "png", "gif"));
+        fileChooser.addChoosableFileFilter(new FileNameExtensionFilter("Archivos comprimidos", "zip", "rar"));
+        fileChooser.setAcceptAllFileFilterUsed(true);
         
         if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             File file = fileChooser.getSelectedFile();
             try {
-                String content = controller.loadTextFile(file.getAbsolutePath());
-                inputTextArea.setText(content);
+                String fileName = file.getName().toLowerCase();
+                String content;
                 
-                // Guardar el nombre del archivo para usarlo al comprimir
+                // Determinar si es archivo de texto o binario
+                if (fileName.endsWith(".txt")) {
+                    content = controller.loadTextFile(file.getAbsolutePath());
+                    inputTextArea.setText(content);
+                } else {
+                    // Archivo binario
+                    content = controller.loadBinaryFile(file.getAbsolutePath());
+                    inputTextArea.setText("[Archivo binario cargado: " + file.getName() + "]\n" +
+                        "Tamaño: " + file.length() + " bytes\n" +
+                        "Tipo: " + getFileExtension(fileName));
+                }
+                
+                // Guardar el nombre y path del archivo para usarlo al comprimir
                 lastOriginalFileName = file.getName();
+                lastOriginalFilePath = file.getAbsolutePath();
                 
-                compressionStatusLabel.setText("Archivo cargado: " + file.getName());
+                compressionStatusLabel.setText("Archivo cargado: " + file.getName() + " (" + file.length() + " bytes)");
                 compressionStatusLabel.setForeground(Color.BLUE);
             } catch (Exception ex) {
                 showError("Error al cargar archivo", ex.getMessage());
@@ -282,10 +307,8 @@ public class MainWindow extends JFrame {
     }
 
     private void compress() {
-        String text = inputTextArea.getText();
-        
-        if (text.trim().isEmpty()) {
-            showError("Archivo vacío", "El texto de entrada está vacío. Por favor, cargue o escriba un texto.");
+        if (lastOriginalFilePath == null || lastOriginalFileName == null) {
+            showError("Sin archivo", "Por favor, cargue un archivo primero.");
             return;
         }
 
@@ -294,7 +317,17 @@ public class MainWindow extends JFrame {
             compressionStatusLabel.setText("Comprimiendo...");
             compressionStatusLabel.setForeground(Color.BLUE);
             
-            lastCompressionResult = controller.compressText(text);
+            // Cargar el archivo usando el path almacenado
+            String content;
+            String fileName = lastOriginalFileName.toLowerCase();
+            
+            if (fileName.endsWith(".txt")) {
+                content = controller.loadTextFile(lastOriginalFilePath);
+            } else {
+                content = controller.loadBinaryFile(lastOriginalFilePath);
+            }
+            
+            lastCompressionResult = controller.compressText(content);
             
             // Mostrar datos codificados
             compressedOutputArea.setText(lastCompressionResult.getEncodedDataString());
@@ -346,7 +379,9 @@ public class MainWindow extends JFrame {
         if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             File file = fileChooser.getSelectedFile();
             try {
-                controller.saveCompressedFile(lastCompressionResult, file.getAbsolutePath());
+                // Obtener la extensión original del archivo
+                String originalExtension = getFileExtension(lastOriginalFileName);
+                controller.saveCompressedFile(lastCompressionResult, file.getAbsolutePath(), originalExtension);
                 showInfo("Guardado exitoso", "El archivo comprimido se guardó correctamente.");
                 compressionStatusLabel.setText("Archivo guardado: " + file.getName());
             } catch (Exception ex) {
@@ -385,11 +420,15 @@ public class MainWindow extends JFrame {
         if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             File file = fileChooser.getSelectedFile();
             try {
+                Object[] result = controller.loadCompressedFileWithExtension(file.getAbsolutePath());
+                String originalExtension = (String) result[0];
+                @SuppressWarnings("unchecked")
                 List<CompressionResult.EncodedPair> encodedData = 
-                    controller.loadCompressedFile(file.getAbsolutePath());
+                    (List<CompressionResult.EncodedPair>) result[1];
                 
                 // Guardar el nombre del archivo para usarlo al descomprimir
                 lastCompressedFileName = file.getName();
+                lastOriginalFileName = originalExtension; // Guardar extensión para descomprimir
                 
                 // Crear resultado temporal para mostrar información
                 CompressionResult tempResult = new CompressionResult();
@@ -397,7 +436,9 @@ public class MainWindow extends JFrame {
                 
                 lastDecompressionResult = tempResult;
                 
+                String fileType = !originalExtension.isEmpty() ? originalExtension : "desconocido";
                 decompressionStatsArea.setText("Archivo cargado correctamente.\n\n" +
+                    "Tipo de archivo original: " + fileType + "\n" +
                     "Pares codificados: " + encodedData.size() + "\n" +
                     "Tamaño estimado: " + (encodedData.size() * 6) + " bytes\n\n" +
                     "Presione 'Descomprimir' para continuar.");
@@ -460,17 +501,35 @@ public class MainWindow extends JFrame {
         }
 
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setFileFilter(new FileNameExtensionFilter("Archivos de Texto", "txt"));
+        
+        // Determinar la extensión original
+        String originalExt = lastOriginalFileName != null && !lastOriginalFileName.isEmpty() 
+            ? lastOriginalFileName : ".txt";
+        if (!originalExt.startsWith(".")) {
+            originalExt = "." + originalExt;
+        }
+        
+        // Configurar filtro según el tipo de archivo
+        if (originalExt.equals(".txt")) {
+            fileChooser.setFileFilter(new FileNameExtensionFilter("Archivos de Texto", "txt"));
+        } else if (originalExt.equals(".docx") || originalExt.equals(".doc")) {
+            fileChooser.setFileFilter(new FileNameExtensionFilter("Documentos Word", "docx", "doc"));
+        } else if (originalExt.equals(".xlsx") || originalExt.equals(".xls")) {
+            fileChooser.setFileFilter(new FileNameExtensionFilter("Hojas Excel", "xlsx", "xls"));
+        } else if (originalExt.equals(".pdf")) {
+            fileChooser.setFileFilter(new FileNameExtensionFilter("Archivos PDF", "pdf"));
+        } else {
+            fileChooser.setAcceptAllFileFilterUsed(true);
+        }
         
         // Generar nombre de archivo basado en el archivo .lz78 original
-        String defaultFileName = "descomprimido.txt";
+        String defaultFileName = "descomprimido" + originalExt;
         if (lastCompressedFileName != null && !lastCompressedFileName.isEmpty()) {
-            // Remover la extensión .lz78 y agregar _descomprimido.txt
             String baseName = lastCompressedFileName;
             if (baseName.toLowerCase().endsWith(".lz78")) {
                 baseName = baseName.substring(0, baseName.length() - 5);
             }
-            defaultFileName = baseName + "_descomprimido.txt";
+            defaultFileName = baseName + "_descomprimido" + originalExt;
         }
         
         fileChooser.setSelectedFile(new File(defaultFileName));
@@ -478,9 +537,16 @@ public class MainWindow extends JFrame {
         if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             File file = fileChooser.getSelectedFile();
             try {
-                controller.saveDecompressedFile(
-                    lastDecompressionResult.getDecompressedText(), 
-                    file.getAbsolutePath());
+                // Guardar como binario o texto según la extensión
+                if (originalExt.equals(".txt")) {
+                    controller.saveDecompressedFile(
+                        lastDecompressionResult.getDecompressedText(), 
+                        file.getAbsolutePath());
+                } else {
+                    controller.saveBinaryFile(
+                        lastDecompressionResult.getDecompressedText(), 
+                        file.getAbsolutePath());
+                }
                 showInfo("Guardado exitoso", "El archivo descomprimido se guardó correctamente.");
                 decompressionStatusLabel.setText("Archivo guardado: " + file.getName());
             } catch (Exception ex) {
@@ -497,5 +563,21 @@ public class MainWindow extends JFrame {
 
     private void showInfo(String title, String message) {
         JOptionPane.showMessageDialog(this, message, title, JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    /**
+     * Obtiene la extensión de un archivo
+     * @param fileName Nombre del archivo
+     * @return Extensión con punto (ej: ".txt")
+     */
+    private String getFileExtension(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return "";
+        }
+        int lastDot = fileName.lastIndexOf('.');
+        if (lastDot > 0 && lastDot < fileName.length() - 1) {
+            return fileName.substring(lastDot);
+        }
+        return "";
     }
 }
