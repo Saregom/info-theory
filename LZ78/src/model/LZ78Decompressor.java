@@ -50,7 +50,10 @@ public class LZ78Decompressor {
         result.setDictionary(dictionary);
         result.setEncodedData(encodedData);
         result.setOriginalSize(decompressedText.length());
-        result.setCompressedSize(encodedData.size() * 6L);
+        
+        // Calcular el tamaño comprimido usando el mismo método que el compresor
+        long compressedSize = calculateCompressedSize(encodedData, dictionary.size());
+        result.setCompressedSize(compressedSize);
 
         return result;
     }
@@ -82,5 +85,34 @@ public class LZ78Decompressor {
         }
 
         return dictionary;
+    }
+
+    /**
+     * Calcula el tamaño real del archivo comprimido en bytes
+     * usando codificación de longitud variable basada en el tamaño del diccionario
+     * @param encodedData Lista de pares codificados
+     * @param dictionarySize Tamaño del diccionario
+     * @return Tamaño estimado en bytes
+     */
+    private long calculateCompressedSize(List<CompressionResult.EncodedPair> encodedData, int dictionarySize) {
+        if (encodedData.isEmpty()) {
+            return 0;
+        }
+
+        // Calcular bits necesarios para el índice más grande
+        // log2(dictionarySize) redondeado hacia arriba
+        int maxIndex = dictionarySize;
+        int bitsPerIndex = (int) Math.ceil(Math.log(maxIndex + 1) / Math.log(2));
+        
+        // Cada carácter usa 8 bits (1 byte)
+        int bitsPerChar = 8;
+        
+        // Total de bits para todos los pares
+        long totalBits = (long) encodedData.size() * (bitsPerIndex + bitsPerChar);
+        
+        // Convertir a bytes (redondear hacia arriba)
+        long totalBytes = (totalBits + 7) / 8;
+        
+        return totalBytes;
     }
 }
